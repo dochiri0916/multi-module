@@ -1,0 +1,8 @@
+rootProject.name = 'multi-module'
+
+include(
+    'applications:commerce-api',
+    'applications:commerce-batch',
+    'modules:jpa',
+    'modules:security'
+)

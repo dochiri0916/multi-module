@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: commerce-api
+
+security:
+  jwt:
+    secret: change-this-secret-key-to-at-least-32-bytes
+    access-token-expiration-seconds: 3600
