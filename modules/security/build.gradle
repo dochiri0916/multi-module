@@ -5,6 +5,7 @@ plugins {
 description = 'security-module'
 
 dependencies {
+    api project(':modules:common')
     api 'org.springframework.boot:spring-boot-starter-security'
 
     implementation 'org.springframework:spring-web'
