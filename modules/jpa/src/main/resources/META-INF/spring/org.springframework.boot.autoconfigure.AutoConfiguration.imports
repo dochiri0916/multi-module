@@ -1,0 +1,2 @@
+com.dochiri.jpa.config.JpaConfig
+com.dochiri.jpa.config.QueryDslConfig
