@@ -10,7 +10,11 @@ import java.util.Optional;
 
 public class SecurityAuditorAware implements AuditorAware<Long> {
 
-    private static final Long SYSTEM = 0L;
+    private final Long systemUserId;
+
+    public SecurityAuditorAware(Long systemUserId) {
+        this.systemUserId = systemUserId;
+    }
 
     @Override
     public Optional<Long> getCurrentAuditor() {
@@ -19,7 +23,7 @@ public class SecurityAuditorAware implements AuditorAware<Long> {
         if (authentication == null
                 || !authentication.isAuthenticated()
                 || authentication instanceof AnonymousAuthenticationToken) {
-            return Optional.of(SYSTEM);
+            return Optional.of(systemUserId);
         }
 
         Object principal = authentication.getPrincipal();
@@ -28,6 +32,6 @@ public class SecurityAuditorAware implements AuditorAware<Long> {
             return Optional.of(jwtPrincipal.userId());
         }
 
-        return Optional.of(SYSTEM);
+        return Optional.of(systemUserId);
     }
 }
