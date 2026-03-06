@@ -1,7 +1,6 @@
-package com.dochiri.jpa.common;
+package com.dochiri.jpa.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
 import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -13,7 +12,6 @@ import java.time.LocalDateTime;
 
 import static java.util.Objects.requireNonNull;
 
-@Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted_at IS NULL")
@@ -39,6 +37,13 @@ public abstract class BaseEntity {
 
     private LocalDateTime deletedAt;
 
+    public Long getId() { return id; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getCreatedBy() { return createdBy; }
+    public Long getUpdatedBy() { return updatedBy; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+
     public boolean markDeleted(LocalDateTime now) {
         requireNonNull(now, "now must not be null");
 
@@ -53,5 +58,4 @@ public abstract class BaseEntity {
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
-
 }

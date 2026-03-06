@@ -1,2 +1,2 @@
-com.dochiri.jpa.config.JpaConfig
-com.dochiri.jpa.config.QueryDslConfig
+com.dochiri.jpa.configuration.JpaAutoConfiguration
+com.dochiri.jpa.configuration.QueryDslAutoConfiguration
