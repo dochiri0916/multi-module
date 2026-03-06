@@ -150,6 +150,9 @@ public class ApiExceptionHandler extends GlobalExceptionHandler {
 #### 필수 `application.yml` 설정
 
 ```yaml
+common:
+  timezone: "Asia/Seoul"            # Clock 빈의 타임존 (기본값: Asia/Seoul)
+
 jwt:
   secret: "your-secret-key"        # JWT 서명에 사용할 비밀 키 (최소 32자)
   access-expiration: 3600000        # 액세스 토큰 만료 시간 (ms), 예: 1시간
@@ -163,6 +166,7 @@ security:
   public-endpoints:
     - "/api/auth/**"                # 인증 없이 접근 가능한 엔드포인트 패턴 목록
     - "/api/public/**"
+  system-user-id: 0                 # 미인증 요청의 JPA Auditing 기본 사용자 ID (기본값: 0)
 ```
 
 > IDE(IntelliJ 등)에서 `application.yml` 작성 시 자동완성이 지원됩니다.
