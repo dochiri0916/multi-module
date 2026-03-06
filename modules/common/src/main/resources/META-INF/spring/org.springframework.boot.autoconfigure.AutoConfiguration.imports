@@ -1,1 +1,1 @@
-com.dochiri.common.config.ClockConfig
+com.dochiri.common.configuration.CommonAutoConfiguration
