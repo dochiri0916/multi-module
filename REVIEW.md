@@ -81,14 +81,6 @@ common  (spring-context)
 
 `@AutoConfigureBefore` / `@AutoConfigureAfter`가 사용되지 않는다. 현재 순서 의존성이 없어 문제되지 않지만, 이 가정을 주석이나 문서로 명시하는 것이 좋다.
 
-#### 10. 테스트 코드 부재
-
-모든 모듈에 테스트 코드가 없다. 라이브러리 모듈의 Auto-configuration이 올바르게 동작하는지 검증하는 통합 테스트가 필요하다.
-
-- `@SpringBootTest` + 테스트용 `@SpringBootApplication`으로 빈 로딩 검증
-- Properties 바인딩 및 유효성 검사 테스트
-- `@ConditionalOnMissingBean` 오버라이드 동작 테스트
-
 ---
 
 ## 모듈별 상세
@@ -129,4 +121,4 @@ common  (spring-context)
 |----------|------|--------|
 | Critical | COMMON_MODULE_DESIGN.md 버전 정보 업데이트 | 낮음 |
 | Low | Auto-configuration 순서 가정 문서화 | 낮음 |
-| Low | 테스트 코드 추가 | 높음 |
+| Low | ~~테스트 코드 추가~~ (완료, 38개) | - |
