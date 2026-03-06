@@ -142,7 +142,7 @@ com.dochiri.jpa.config.JpaConfig
 **modules/security/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports:**
 
 ```
-com.dochiri.security.config.SecurityAutoConfiguration
+com.dochiri.security.configuration.SecurityAutoConfiguration
 ```
 
 ### 이게 없으면?
