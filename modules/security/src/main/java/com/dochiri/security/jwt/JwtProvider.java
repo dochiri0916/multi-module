@@ -1,8 +1,12 @@
 package com.dochiri.security.jwt;
 
+import com.dochiri.security.configuration.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.BadCredentialsException;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +15,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 public class JwtProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtProvider.class);
 
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_CATEGORY = "category";
@@ -50,7 +56,12 @@ public class JwtProvider {
     }
 
     public String extractRole(Claims claims) {
-        return claims.get(CLAIM_ROLE, String.class);
+        String role = claims.get(CLAIM_ROLE, String.class);
+        if (role == null || role.isBlank()) {
+            log.warn("JWT 토큰에 role 클레임이 없거나 비어 있습니다. subject: {}", claims.getSubject());
+            throw new BadCredentialsException("JWT 토큰에 유효한 role 클레임이 포함되어야 합니다.");
+        }
+        return role;
     }
 
     public boolean isAccessToken(Claims claims) {
