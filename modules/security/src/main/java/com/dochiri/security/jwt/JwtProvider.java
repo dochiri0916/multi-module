@@ -10,8 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.Instant;
 import java.util.Date;
 
 public class JwtProvider {
@@ -39,8 +38,8 @@ public class JwtProvider {
         return generateToken(userId, role, CATEGORY_REFRESH, jwtProperties.refreshExpiration());
     }
 
-    public LocalDateTime refreshTokenExpiresAt() {
-        return LocalDateTime.now().plus(jwtProperties.refreshExpiration(), ChronoUnit.MILLIS);
+    public Instant refreshTokenExpiresAt() {
+        return Instant.now().plusMillis(jwtProperties.refreshExpiration());
     }
 
     public Claims parseAndValidate(String token) {
@@ -73,14 +72,15 @@ public class JwtProvider {
     }
 
     private String generateToken(Long userId, String role, String category, long expirationMillis) {
-        long now = System.currentTimeMillis();
+        Instant now = Instant.now();
+        Instant expiration = now.plusMillis(expirationMillis);
 
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim(CLAIM_ROLE, role)
                 .claim(CLAIM_CATEGORY, category)
-                .issuedAt(new Date(now))
-                .expiration(new Date(now + expirationMillis))
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
                 .signWith(signingKey)
                 .compact();
     }

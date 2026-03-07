@@ -8,7 +8,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static java.util.Objects.requireNonNull;
 
@@ -23,10 +23,10 @@ public abstract class BaseEntity {
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @CreatedBy
     @Column(nullable = false, updatable = false)
@@ -35,16 +35,16 @@ public abstract class BaseEntity {
     @LastModifiedBy
     private Long updatedBy;
 
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     public Long getId() { return id; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public Long getCreatedBy() { return createdBy; }
     public Long getUpdatedBy() { return updatedBy; }
-    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public Instant getDeletedAt() { return deletedAt; }
 
-    public boolean markDeleted(LocalDateTime now) {
+    public boolean markDeleted(Instant now) {
         requireNonNull(now, "now must not be null");
 
         if (this.deletedAt != null) {

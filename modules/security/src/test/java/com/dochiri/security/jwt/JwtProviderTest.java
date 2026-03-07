@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.BadCredentialsException;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -85,7 +87,7 @@ class JwtProviderTest {
 
     @Test
     void refreshTokenExpiresAt은_현재_시각_이후이다() {
-        assertThat(jwtProvider.refreshTokenExpiresAt()).isAfter(java.time.LocalDateTime.now());
+        assertThat(jwtProvider.refreshTokenExpiresAt()).isAfter(Instant.now());
     }
 
     @Test

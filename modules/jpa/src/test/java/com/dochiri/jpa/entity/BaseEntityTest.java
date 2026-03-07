@@ -2,7 +2,7 @@ package com.dochiri.jpa.entity;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,7 +23,7 @@ class BaseEntityTest {
     @Test
     void markDeleted_호출하면_삭제_상태가_된다() {
         TestEntity entity = new TestEntity();
-        LocalDateTime now = LocalDateTime.of(2025, 1, 1, 12, 0);
+        Instant now = Instant.parse("2025-01-01T12:00:00Z");
 
         boolean result = entity.markDeleted(now);
 
@@ -35,8 +35,8 @@ class BaseEntityTest {
     @Test
     void 이미_삭제된_엔티티에_markDeleted를_호출하면_false를_반환한다() {
         TestEntity entity = new TestEntity();
-        LocalDateTime first = LocalDateTime.of(2025, 1, 1, 12, 0);
-        LocalDateTime second = LocalDateTime.of(2025, 1, 2, 12, 0);
+        Instant first = Instant.parse("2025-01-01T12:00:00Z");
+        Instant second = Instant.parse("2025-01-02T12:00:00Z");
 
         entity.markDeleted(first);
         boolean result = entity.markDeleted(second);
