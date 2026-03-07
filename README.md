@@ -17,9 +17,10 @@
 
 | 모듈명 | artifactId | 설명 | 주요 의존성 |
 |:---:|:---|:---|:---|
-| **common** | `dochiri-common` | 예외 처리(ErrorCode, BaseException), Clock 설정 | `spring-context` |
-| **jpa** | `dochiri-jpa` | JPA Auditing, BaseEntity, QueryDSL 설정 | `common`, `spring-data-jpa`, `querydsl` |
-| **security** | `dochiri-security` | JWT 인증/인가, 보안 설정, 토큰 Provider | `common`, `spring-security`, `jjwt` |
+| **error-handling** | `dochiri-error-handling` | 예외 처리(ErrorCode, BaseException), ProblemDetail 기반 전역 예외 처리 | `spring-web`, `spring-webmvc` |
+| **time** | `dochiri-time` | 공통 `Clock`, timezone 프로퍼티, 시간 자동 설정 | `spring-context` |
+| **jpa** | `dochiri-jpa` | JPA Auditing, BaseEntity, QueryDSL 설정 | `spring-data-jpa`, `querydsl` |
+| **security** | `dochiri-security` | JWT 인증/인가, 보안 설정, 토큰 Provider | `spring-security`, `jjwt` |
 
 ## 🚀 Getting Started
 
@@ -59,7 +60,8 @@ dependencyResolutionManagement {
 ```gradle
 dependencies {
     // 필요한 모듈만 선택하여 추가
-    implementation 'com.dochiri:dochiri-common:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
     implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
     implementation 'com.dochiri:dochiri-security:0.0.1-SNAPSHOT'
 }
@@ -69,9 +71,9 @@ dependencies {
 
 ## ⚙️ Module Details
 
-### Common Module (`dochiri-common`)
+### Error Handling Module (`dochiri-error-handling`)
 
-예외 처리 프레임워크와 공통 설정을 제공합니다. 에러 응답은 RFC 9457 (Problem Details) 표준을 따릅니다.
+예외 처리 프레임워크를 제공합니다. 에러 응답은 RFC 9457 (Problem Details) 표준을 따릅니다.
 
 #### ErrorCode 정의
 
@@ -135,9 +137,17 @@ public class ApiExceptionHandler extends GlobalExceptionHandler {
 
 ---
 
+### Time Module (`dochiri-time`)
+
+- **Clock**: `time.timezone` 프로퍼티 기준의 `Clock` 빈을 자동 등록합니다. 기본값은 `Asia/Seoul`입니다.
+- **TimeProperties**: 공통 시간대 정책을 애플리케이션 프로퍼티로 관리할 수 있습니다.
+- **권장 원칙**: 시스템 timestamp는 `Instant`로 다루고, 필요할 때만 `Asia/Seoul` 등 원하는 타임존으로 변환해 사용합니다.
+
+---
+
 ### JPA Module (`dochiri-jpa`)
 
-- **BaseEntity**: 생성일, 수정일, 생성자, 수정자를 자동으로 관리하는 매핑 상위 클래스를 제공합니다. Soft delete(`deletedAt`)를 지원합니다.
+- **BaseEntity**: 생성일, 수정일, 생성자, 수정자를 자동으로 관리하는 매핑 상위 클래스를 제공합니다. 시간 필드는 `Instant`를 사용하며, Soft delete(`deletedAt`)를 지원합니다.
 - **QueryDSL**: `JPAQueryFactory` 빈이 자동 등록되어, 별도의 QueryDSL 설정 없이 바로 사용 가능합니다.
 
 ---
@@ -150,7 +160,7 @@ public class ApiExceptionHandler extends GlobalExceptionHandler {
 #### 필수 `application.yml` 설정
 
 ```yaml
-common:
+time:
   timezone: "Asia/Seoul"            # Clock 빈의 타임존 (기본값: Asia/Seoul)
 
 jwt:
@@ -178,7 +188,7 @@ security:
 ### 1. 로그인 - 토큰 발급
 
 `JwtTokenGenerator`를 주입받아 로그인 성공 시 토큰을 발급합니다.
-`JwtTokenResult`에는 `accessToken`, `refreshToken`, `refreshTokenExpiresAt`이 담겨 있습니다.
+`JwtTokenResult`에는 `accessToken`, `refreshToken`, `refreshTokenExpiresAt`이 담겨 있으며, 만료 시각은 `Instant` 기준입니다.
 
 ```java
 @Service
