@@ -5,7 +5,6 @@ plugins {
 description = 'jpa-module'
 
 dependencies {
-    api project(':modules:common')
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
     api 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
 

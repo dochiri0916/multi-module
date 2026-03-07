@@ -1,7 +1,8 @@
 rootProject.name = 'multi-module'
 
 include(
-    'modules:common',
+    'modules:error-handling',
     'modules:jpa',
-    'modules:security'
+    'modules:security',
+    'modules:time'
 )

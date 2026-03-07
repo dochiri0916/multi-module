@@ -1,0 +1,8 @@
+description = 'error-handling-module'
+
+dependencies {
+    api 'org.springframework:spring-web'
+    api 'org.springframework:spring-webmvc'
+    api 'jakarta.servlet:jakarta.servlet-api'
+    compileOnly 'org.slf4j:slf4j-api'
+}

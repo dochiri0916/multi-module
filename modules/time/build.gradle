@@ -1,0 +1,8 @@
+description = 'time-module'
+
+dependencies {
+    api 'org.springframework:spring-context'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}
