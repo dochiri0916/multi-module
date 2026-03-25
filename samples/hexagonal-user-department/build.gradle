@@ -1,0 +1,37 @@
+plugins {
+    id 'application'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.dochiri.sample'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.3"
+    }
+}
+
+application {
+    mainClass = 'com.dochiri.sample.hexagonal.HexagonalUserDepartmentApplication'
+}
+
+dependencies {
+    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

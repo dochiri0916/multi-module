@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.PREFER_PROJECT
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+}
+
+rootProject.name = 'hexagonal-user-department'
+
+includeBuild('../..') {
+    dependencySubstitution {
+        substitute module('com.dochiri:dochiri-api-starter') using project(':modules:api-starter')
+    }
+}
