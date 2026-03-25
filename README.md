@@ -1,128 +1,217 @@
-# Multi-Module Project (Common Libraries)
+# multi-module
 
-이 프로젝트는 **Dochiri** 서비스 생태계에서 사용되는 공통 기능을 모듈화하여 관리하는 저장소입니다.
-각 모듈은 독립적인 JAR 라이브러리로 빌드되어 다른 애플리케이션(API, Batch 등)에서 의존성으로 추가하여 사용됩니다.
+Spring Boot 4 기반 공통 라이브러리 레포다. 이 레포는 실행 애플리케이션이 아니라, 다른 Spring Boot 프로젝트에서 재사용할 모듈을 관리한다.
 
-## 🛠 Tech Stack
+기본 사용 경로는 `dochiri-api-starter` 하나를 의존받는 방식이다.
 
-- **Java**: 25
-- **Build Tool**: Gradle
-- **Framework**: Spring Boot 4.0.3 (Dependency Management)
-- **ORM**: JPA / QueryDSL 5.1.0
-- **Security**: Spring Security / JJWT 0.12.6
+## 제공 모듈
 
-## 📂 Module Structure
+| 구분 | artifactId | 역할 |
+| --- | --- | --- |
+| 기본 진입점 | `dochiri-api-starter` | `webmvc + validation + error-handling + time + jpa + security + security-jpa` 묶음 |
+| 내부 모듈 | `dochiri-error-handling` | `BaseException`, `ErrorCode`, `GlobalExceptionHandler` |
+| 내부 모듈 | `dochiri-time` | `Clock`, `time.timezone` 설정 |
+| 내부 모듈 | `dochiri-jpa` | `BaseEntity`, JPA Auditing, `JPAQueryFactory` |
+| 내부 모듈 | `dochiri-security` | JWT 발급/검증, 기본 `SecurityFilterChain`, CORS, Auditing 연동 |
+| 내부 모듈 | `dochiri-security-jpa` | `RefreshToken` 엔티티, `RefreshTokenRepository`, `RefreshTokenService` |
 
-이 프로젝트는 공통 모듈만 관리하며, 실제 비즈니스 로직을 수행하는 애플리케이션은 포함하지 않습니다.
+소비 프로젝트는 특별한 이유가 없으면 내부 모듈을 직접 조합하지 말고 `dochiri-api-starter`를 사용한다.
 
-| 모듈명 | artifactId | 설명 | 주요 의존성 |
-|:---:|:---|:---|:---|
-| **error-handling** | `dochiri-error-handling` | 예외 처리(ErrorCode, BaseException), ProblemDetail 기반 전역 예외 처리 | `spring-web`, `spring-webmvc` |
-| **time** | `dochiri-time` | 공통 `Clock`, timezone 프로퍼티, 시간 자동 설정 | `spring-context` |
-| **jpa** | `dochiri-jpa` | JPA Auditing, BaseEntity, QueryDSL 설정 | `spring-data-jpa`, `querydsl` |
-| **security** | `dochiri-security` | JWT 인증/인가, 보안 설정, 토큰 Provider | `spring-security`, `jjwt` |
+## 기본 사용 흐름
 
-## 🚀 Getting Started
-
-### 1. Build Modules
-
-루트 디렉토리에서 전체 모듈을 빌드합니다.
+1. 이 레포에서 테스트한다.
 
 ```bash
-./gradlew clean build
+./gradlew clean test
 ```
 
-### 2. Publish to Local Maven (로컬 개발용)
-
-로컬 환경에서 다른 프로젝트가 이 모듈들을 사용할 수 있도록 로컬 Maven 저장소(`~/.m2/repository`)에 배포합니다.
+2. 이 레포를 로컬 Maven 저장소에 배포한다.
 
 ```bash
 ./gradlew publishToMavenLocal
 ```
 
-## 📦 How to Use (in other projects)
+3. 별도 Spring Boot 프로젝트에서 `mavenLocal()`로 `dochiri-api-starter`를 의존받는다.
+4. 소비 프로젝트를 `bootRun`으로 기동해서 실제 계약을 확인한다.
 
-다른 Spring Boot 프로젝트에서 이 모듈을 사용하려면 `build.gradle`에 아래와 같이 추가합니다.
+이 레포 자체는 `bootRun` 대상이 아니다.
 
-### settings.gradle
+## 샘플 프로젝트
+
+실행 가능한 예제는 [samples/hexagonal-user-department/README.md](/Users/songseongbin/programming/study/multi-module/samples/hexagonal-user-department/README.md)에 있다.
+
+- 도메인: `User`, `Department`
+- 구조: `domain -> application port -> adapter`
+- 실행: `./gradlew -p samples/hexagonal-user-department run`
+- 테스트: `./gradlew -p samples/hexagonal-user-department test`
+
+## 소비 프로젝트 시작 방법
+
+가장 단순한 개인 로컬 소비 프로젝트 기준이다.
+
+`start.spring.io`에서는 최소로 아래 정도만 받아도 된다.
+
+- `H2 Database`
+
+그 다음 이 레포에서 먼저 `./gradlew publishToMavenLocal`을 실행한 뒤, 소비 프로젝트 `build.gradle`에 로컬 Maven과 starter를 추가한다.
 
 ```gradle
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-        mavenLocal() // 로컬 빌드된 스냅샷 버전을 가져오기 위해 필요
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+```
+
+중요한 점:
+
+- `mavenLocal()`이 없으면 로컬 publish artifact를 찾지 못한다.
+- 이 레포에서 코드나 버전을 바꿨으면 다시 `./gradlew publishToMavenLocal`을 실행해야 한다.
+- `dochiri-api-starter`는 `spring-boot-starter-webmvc`, `spring-boot-starter-validation`, `dochiri-error-handling`, `dochiri-time`, `dochiri-security-jpa`를 함께 제공한다.
+- DB 드라이버는 소비 프로젝트에서 직접 선택해서 추가한다. 예시에서는 H2를 사용한다.
+
+## starter 적용 의존성
+
+`dochiri-api-starter`를 의존하면 아래 항목을 함께 받는다.
+
+- `org.springframework.boot:spring-boot-starter-webmvc`
+- `org.springframework.boot:spring-boot-starter-validation`
+- `com.dochiri:dochiri-error-handling`
+- `com.dochiri:dochiri-time`
+- `com.dochiri:dochiri-security-jpa`
+
+즉 소비 프로젝트에서 별도로 validation starter를 추가하지 않아도 `@Valid`, `@Validated`, `jakarta.validation.constraints.*`를 바로 사용할 수 있다.
+`dochiri-security-jpa`가 `dochiri-jpa`, `dochiri-security`까지 함께 끌고 오므로 refresh token 저장 기능도 바로 사용할 수 있다.
+
+## 필수 설정
+
+소비 프로젝트의 `application.yml` 예시:
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+time:
+  timezone: Asia/Seoul
+
+jwt:
+  secret: test-secret-key-that-is-at-least-32-characters-long
+  access-expiration: 3600000
+  refresh-expiration: 604800000
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+
+security:
+  public-endpoints:
+    - /api/public/**
+    - /api/auth/**
+  system-user-id: 0
+```
+
+주의:
+
+- `time`, `jwt`, `cors`, `security`는 `spring:` 아래가 아니라 최상위 prefix다.
+- `jwt.secret`은 32자 이상이어야 한다.
+- JPA auditing 기본 사용자 값은 `security.system-user-id`를 사용한다. 이전 키인 `dochiri.jpa.audit.system-user-id`도 하위 호환으로 읽는다.
+
+## starter가 제공하는 기능
+
+### 시간
+
+- 시스템 timestamp는 기본적으로 `Instant`를 사용한다.
+- 사용자에게 한국 시간으로 보여줄 필요가 있으면 `Asia/Seoul`로 변환해서 사용한다.
+- `Clock`은 자동 등록된다.
+
+```java
+@RestController
+class TimeApi {
+
+    private final Clock clock;
+
+    TimeApi(Clock clock) {
+        this.clock = clock;
+    }
+
+    @GetMapping("/api/public/ping")
+    Map<String, Object> ping() {
+        return Map.of("now", Instant.now(clock));
     }
 }
 ```
 
-### build.gradle
+### 예외 처리
 
-```gradle
-dependencies {
-    // 필요한 모듈만 선택하여 추가
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security:0.0.1-SNAPSHOT'
-}
-```
-
----
-
-## ⚙️ Module Details
-
-### Error Handling Module (`dochiri-error-handling`)
-
-예외 처리 프레임워크를 제공합니다. 에러 응답은 RFC 9457 (Problem Details) 표준을 따릅니다.
-
-#### ErrorCode 정의
-
-각 애플리케이션에서 `ErrorCode` 인터페이스를 구현하여 자체 에러코드를 정의합니다.
+에러 코드를 정의한다.
 
 ```java
-@Getter
-@AllArgsConstructor
 public enum UserErrorCode implements ErrorCode {
-
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
-    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;
+
+    UserErrorCode(HttpStatus httpStatus, String message) {
+        this.httpStatus = httpStatus;
+        this.message = message;
+    }
+
+    @Override
+    public HttpStatus getHttpStatus() {
+        return httpStatus;
+    }
+
+    @Override
+    public String getMessage() {
+        return message;
+    }
 }
 ```
 
-#### 예외 발생
+예외를 던진다.
 
 ```java
-// 기본 사용
 throw new BaseException(UserErrorCode.USER_NOT_FOUND);
-
-// 추가 속성 포함
 throw BaseException.of(UserErrorCode.USER_NOT_FOUND, "userId", userId);
-
-// Map으로 전달
-throw new BaseException(UserErrorCode.DUPLICATE_EMAIL, Map.of("email", email));
 ```
 
-#### 응답 예시 (RFC 9457)
-
-```json
-{
-  "type": "/errors/user-not-found",
-  "title": "USER_NOT_FOUND",
-  "status": 404,
-  "detail": "사용자를 찾을 수 없습니다.",
-  "instance": "/api/users/123",
-  "code": "USER_NOT_FOUND",
-  "userId": 123
-}
-```
-
-#### GlobalExceptionHandler 활성화
-
-`GlobalExceptionHandler`는 라이브러리 모듈이므로 직접 활성화되지 않습니다.
-사용처에서 상속받아 `@RestControllerAdvice`를 붙여 활성화합니다.
+전역 예외 처리를 활성화한다.
 
 ```java
 @RestControllerAdvice
@@ -130,157 +219,247 @@ public class ApiExceptionHandler extends GlobalExceptionHandler {
 }
 ```
 
-이것만으로 다음이 자동 처리됩니다:
-- `BaseException` → RFC 9457 형식 응답
-- Spring MVC 표준 예외 (검증 실패, 잘못된 HTTP 메서드 등) → ProblemDetail 형식 응답
-- 미처리 예외 → 500 에러 + 로깅
+응답 예시:
 
----
+```json
+{
+  "type": "/errors/user-not-found",
+  "title": "USER_NOT_FOUND",
+  "status": 404,
+  "detail": "사용자를 찾을 수 없습니다.",
+  "instance": "/api/users/1",
+  "code": "USER_NOT_FOUND",
+  "userId": 1
+}
+```
 
-### Time Module (`dochiri-time`)
+### Validation
 
-- **Clock**: `time.timezone` 프로퍼티 기준의 `Clock` 빈을 자동 등록합니다. 기본값은 `Asia/Seoul`입니다.
-- **TimeProperties**: 공통 시간대 정책을 애플리케이션 프로퍼티로 관리할 수 있습니다.
-- **권장 원칙**: 시스템 timestamp는 `Instant`로 다루고, 필요할 때만 `Asia/Seoul` 등 원하는 타임존으로 변환해 사용합니다.
+`dochiri-api-starter`만 의존해도 바로 사용할 수 있다.
 
----
+```java
+public record CreatePostRequest(
+        @NotBlank String title
+) {
+}
 
-### JPA Module (`dochiri-jpa`)
+@PostMapping("/api/public/posts")
+void create(@Valid @RequestBody CreatePostRequest request) {
+}
+```
 
-- **BaseEntity**: 생성일, 수정일, 생성자, 수정자를 자동으로 관리하는 매핑 상위 클래스를 제공합니다. 시간 필드는 `Instant`를 사용하며, Soft delete(`deletedAt`)를 지원합니다.
-- **QueryDSL**: `JPAQueryFactory` 빈이 자동 등록되어, 별도의 QueryDSL 설정 없이 바로 사용 가능합니다.
+### JPA
 
----
+엔티티는 `BaseEntity`를 상속하고, 식별자는 엔티티가 직접 선언한다.
 
-### Security Module (`dochiri-security`)
+```java
+@Entity
+public class Post extends BaseEntity {
 
-- **JWT**: `JwtTokenGenerator`, `JwtAuthenticationFilter`를 통해 토큰 기반 인증을 제공합니다.
-- **SecurityConfig**: 기본 보안 설정을 제공하며, 필요 시 사용자 정의 가능합니다.
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-#### 필수 `application.yml` 설정
+    private String title;
+
+    protected Post() {
+    }
+
+    public Post(String title) {
+        this.title = title;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+}
+```
+
+특징:
+
+- `BaseEntity`는 `createdAt`, `updatedAt`, `createdBy`, `updatedBy`만 제공한다.
+- 식별자 필드와 생성 전략은 각 엔티티가 직접 정한다.
+- `createdBy`, `updatedBy`는 `Long`
+- `JpaRepository.delete*` 계열 메서드는 기본 JPA 동작대로 물리 삭제한다.
+- `JPAQueryFactory`는 자동 등록된다.
+- 미인증 요청은 `security.system-user-id`를 감사자 값으로 사용한다.
+
+soft delete는 공통 모듈이 강제하지 않는다.
+필요하면 소비 프로젝트에서 엔티티 필드, 조회 조건, 삭제 정책을 직접 정의하는 편이 맞다.
+
+Querydsl 사용:
+
+`JPAQueryFactory` 빈은 자동 등록되지만, Q 클래스 생성용 annotation processor는 소비 프로젝트에서 직접 추가해야 한다.
+이 설정은 transitive dependency로 전달되지 않는다.
+
+소비 프로젝트 `build.gradle` 예시:
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+}
+```
+
+사용 예시:
+
+```java
+@Repository
+class PostQueryRepository {
+
+    private final JPAQueryFactory queryFactory;
+
+    PostQueryRepository(JPAQueryFactory queryFactory) {
+        this.queryFactory = queryFactory;
+    }
+
+    List<Post> findRecent() {
+        QPost post = QPost.post;
+
+        return queryFactory
+                .selectFrom(post)
+                .orderBy(post.createdAt.desc())
+                .fetch();
+    }
+}
+```
+
+### Security
+
+기본 사용 경로는 `RefreshTokenService`로 access/refresh token을 함께 발급하고 refresh token을 DB에 저장하는 방식이다.
+
+```java
+@Service
+class AuthService {
+
+    private final RefreshTokenService refreshTokenService;
+
+    AuthService(RefreshTokenService refreshTokenService) {
+        this.refreshTokenService = refreshTokenService;
+    }
+
+    JwtTokenResult login(Long userId, String role) {
+        return refreshTokenService.generateToken(userId, role);
+    }
+}
+```
+
+refresh token 재발급 예시:
+
+```java
+@Service
+class TokenRefreshService {
+
+    private final RefreshTokenService refreshTokenService;
+    private final UserRepository userRepository;
+
+    TokenRefreshService(
+            RefreshTokenService refreshTokenService,
+            UserRepository userRepository
+    ) {
+        this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+    }
+
+    JwtTokenResult refresh(String refreshToken) {
+        Long userId = refreshTokenService.verifyAndExtractUserId(refreshToken);
+        User user = userRepository.findById(userId).orElseThrow();
+
+        refreshTokenService.revoke(refreshToken);
+        return refreshTokenService.generateToken(user.getId(), user.getRole());
+    }
+}
+```
+
+인증 사용자 조회:
+
+```java
+@GetMapping("/api/me")
+Map<String, Object> me(@AuthenticationPrincipal JwtPrincipal principal) {
+    return Map.of(
+            "userId", principal.userId(),
+            "role", principal.role()
+    );
+}
+```
+
+`JwtTokenResult`는 아래 값을 반환한다.
+
+- `accessToken`
+- `refreshToken`
+- `refreshTokenExpiresAt`
+
+`refreshTokenExpiresAt`은 `Instant`다.
+
+starter에는 아래 항목도 포함된다.
+
+- `RefreshToken` 엔티티
+- `RefreshTokenRepository`
+- `RefreshTokenService`
+
+즉 서버가 refresh token을 DB에 기억하는 구조를 바로 사용할 수 있다. 기본 테이블 이름은 `refresh_tokens`다.
+
+stateless 방식이 필요하면 `JwtTokenGenerator`, `RefreshTokenVerifier`를 직접 사용해도 된다.
+
+공개 경로는 아래 설정으로 제어한다.
 
 ```yaml
-time:
-  timezone: "Asia/Seoul"            # Clock 빈의 타임존 (기본값: Asia/Seoul)
-
-jwt:
-  secret: "your-secret-key"        # JWT 서명에 사용할 비밀 키 (최소 32자)
-  access-expiration: 3600000        # 액세스 토큰 만료 시간 (ms), 예: 1시간
-  refresh-expiration: 604800000     # 리프레시 토큰 만료 시간 (ms), 예: 7일
-
-cors:
-  allowed-origins:
-    - "https://example.com"         # CORS 허용할 origin 목록
-
 security:
   public-endpoints:
-    - "/api/auth/**"                # 인증 없이 접근 가능한 엔드포인트 패턴 목록
-    - "/api/public/**"
-  system-user-id: 0                 # 미인증 요청의 JPA Auditing 기본 사용자 ID (기본값: 0)
+    - /api/public/**
+    - /api/auth/**
 ```
 
-> IDE(IntelliJ 등)에서 `application.yml` 작성 시 자동완성이 지원됩니다.
+이 외 경로는 기본적으로 인증이 필요하다.
 
----
+401 응답 예시:
 
-## 💡 Usage Examples
-
-### 1. 로그인 - 토큰 발급
-
-`JwtTokenGenerator`를 주입받아 로그인 성공 시 토큰을 발급합니다.
-`JwtTokenResult`에는 `accessToken`, `refreshToken`, `refreshTokenExpiresAt`이 담겨 있으며, 만료 시각은 `Instant` 기준입니다.
-
-```java
-@Service
-@RequiredArgsConstructor
-public class AuthService {
-
-    private final JwtTokenGenerator jwtTokenGenerator;
-
-    public JwtTokenResult login(String email, String password) {
-        // 사용자 인증 로직 (생략)
-        Long userId = user.getId();
-        String role = user.getRole(); // 예: "USER", "ADMIN"
-
-        return jwtTokenGenerator.generateToken(userId, role);
-    }
+```json
+{
+  "type": "/errors/unauthorized",
+  "title": "UNAUTHORIZED",
+  "status": 401,
+  "detail": "인증이 필요합니다.",
+  "instance": "/api/me"
 }
 ```
 
----
+## 소비 프로젝트 검증 체크리스트
 
-### 2. 리프레시 토큰 재발급
+실제 개인 소비 프로젝트에서 최소 아래는 확인하는 것을 권장한다.
 
-`RefreshTokenVerifier`를 주입받아 리프레시 토큰을 검증하고 새 액세스 토큰을 발급합니다.
+1. `./gradlew bootRun`으로 앱 기동
+2. 공개 엔드포인트에서 `Clock` 주입 확인
+3. `BaseException` 응답 확인
+4. `BaseEntity` 저장 후 `createdAt`, `createdBy` 확인
+5. JWT 발급 확인
+6. `Authorization: Bearer <token>`으로 보호 엔드포인트 접근 확인
 
-```java
-@Service
-@RequiredArgsConstructor
-public class TokenRefreshService {
+실제 검증 예시:
 
-    private final RefreshTokenVerifier refreshTokenVerifier;
-    private final JwtTokenGenerator jwtTokenGenerator;
+```bash
+curl http://localhost:8080/api/public/ping
+curl http://localhost:8080/api/public/error
+curl -X POST http://localhost:8080/api/public/posts -H 'Content-Type: application/json' -d '{"title":"hello"}'
+curl -X POST http://localhost:8080/api/auth/token
+curl http://localhost:8080/api/me -H 'Authorization: Bearer <accessToken>'
+```
 
-    public String refresh(String refreshToken) {
-        // 유효하지 않은 리프레시 토큰이면 BadCredentialsException 발생
-        Long userId = refreshTokenVerifier.verifyAndExtractUserId(refreshToken);
+## 개별 모듈 직접 사용
 
-        String role = userRepository.findById(userId).getRole();
-        return jwtTokenGenerator.generateAccessToken(userId, role);
-    }
+기본 경로는 `dochiri-api-starter`지만, 필요하면 개별 모듈만 직접 의존할 수 있다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
 }
 ```
 
----
-
-### 3. 현재 로그인 사용자 정보 조회
-
-필터를 통과한 요청의 `SecurityContext`에서 `JwtPrincipal`을 꺼냅니다.
-
-```java
-@GetMapping("/me")
-public ResponseEntity<?> getMe(@AuthenticationPrincipal JwtPrincipal principal) {
-    Long userId = principal.userId();
-    String role = principal.role();
-    // ...
-}
-```
-
----
-
-### 4. SecurityFilterChain 커스터마이징
-
-기본 제공되는 `SecurityFilterChain`이 맞지 않을 경우, 직접 정의하면 자동 설정이 비활성화됩니다.
-`JwtAuthenticationFilter` 등 모듈에서 등록된 빈은 그대로 주입받아 사용할 수 있습니다.
-
-```java
-@Configuration
-@RequiredArgsConstructor
-public class CustomSecurityConfig {
-
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
-    }
-}
-```
-
----
-**Note**: 상세한 설계 의도와 배포 전략은 `COMMON_MODULE_DESIGN.md` 문서를 참고하세요.
+이 경로는 모듈 조합 책임이 소비자에게 생기므로, 특별한 이유가 없으면 권장하지 않는다.
