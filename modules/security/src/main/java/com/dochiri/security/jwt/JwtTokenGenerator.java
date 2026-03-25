@@ -1,14 +1,12 @@
 package com.dochiri.security.jwt;
 
 import java.time.Instant;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 public class JwtTokenGenerator {
 
     private final JwtProvider jwtProvider;
-
-    public JwtTokenGenerator(JwtProvider jwtProvider) {
-        this.jwtProvider = jwtProvider;
-    }
 
     public JwtTokenResult generateToken(Long userId, String role) {
         String accessToken = jwtProvider.generateAccessToken(userId, role);

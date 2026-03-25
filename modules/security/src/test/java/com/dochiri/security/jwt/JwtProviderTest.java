@@ -47,8 +47,20 @@ class JwtProviderTest {
 
         assertThat(jwtProvider.extractUserId(claims)).isEqualTo(2L);
         assertThat(jwtProvider.extractRole(claims)).isEqualTo("ADMIN");
+        assertThat(jwtProvider.extractTokenId(claims)).isNotBlank();
+        assertThat(jwtProvider.extractExpiration(claims)).isAfter(Instant.now());
         assertThat(jwtProvider.isRefreshToken(claims)).isTrue();
         assertThat(jwtProvider.isAccessToken(claims)).isFalse();
+    }
+
+    @Test
+    void 액세스_토큰에는_jti_클레임이_없다() {
+        String token = jwtProvider.generateAccessToken(1L, "USER");
+        Claims claims = jwtProvider.parseAndValidate(token);
+
+        assertThatThrownBy(() -> jwtProvider.extractTokenId(claims))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("jti");
     }
 
     @Test

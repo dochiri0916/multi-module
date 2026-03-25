@@ -1,0 +1,12 @@
+description = 'security-jpa-module'
+
+dependencies {
+    api project(':modules:jpa')
+    api project(':modules:security')
+    implementation project(':modules:time')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    testRuntimeOnly 'com.h2database:h2'
+}

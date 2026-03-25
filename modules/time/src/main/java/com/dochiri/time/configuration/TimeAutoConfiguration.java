@@ -15,4 +15,5 @@ public class TimeAutoConfiguration {
     Clock clock(TimeProperties properties) {
         return Clock.system(ZoneId.of(properties.timezone()));
     }
+
 }

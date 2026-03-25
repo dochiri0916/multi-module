@@ -1,5 +1,6 @@
 package com.dochiri.errorhandling;
 
+import lombok.Getter;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 
@@ -8,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+@Getter
 public class BaseException extends ErrorResponseException {
 
     private final ErrorCode errorCode;
@@ -25,10 +27,6 @@ public class BaseException extends ErrorResponseException {
         for (Map.Entry<String, Object> entry : properties.entrySet()) {
             getBody().setProperty(entry.getKey(), entry.getValue());
         }
-    }
-
-    public ErrorCode getErrorCode() {
-        return errorCode;
     }
 
     public static BaseException of(ErrorCode errorCode, Object... keyValues) {
@@ -67,4 +65,5 @@ public class BaseException extends ErrorResponseException {
         }
         return Map.copyOf(mapped);
     }
+
 }

@@ -1,15 +1,13 @@
 package com.dochiri.security.jwt;
 
 import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 
+@RequiredArgsConstructor
 public class RefreshTokenVerifier {
 
     private final JwtProvider jwtProvider;
-
-    public RefreshTokenVerifier(JwtProvider jwtProvider) {
-        this.jwtProvider = jwtProvider;
-    }
 
     public Long verifyAndExtractUserId(String refreshToken) {
         Claims claims = jwtProvider.parseAndValidate(refreshToken);
@@ -20,4 +18,5 @@ public class RefreshTokenVerifier {
 
         return jwtProvider.extractUserId(claims);
     }
+
 }

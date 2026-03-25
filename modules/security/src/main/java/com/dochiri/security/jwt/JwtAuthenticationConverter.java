@@ -1,19 +1,17 @@
 package com.dochiri.security.jwt;
 
 import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 public class JwtAuthenticationConverter {
 
     private final JwtProvider jwtProvider;
-
-    public JwtAuthenticationConverter(JwtProvider jwtProvider) {
-        this.jwtProvider = jwtProvider;
-    }
 
     public UsernamePasswordAuthenticationToken convert(String token) {
         Claims claims = jwtProvider.parseAndValidate(token);

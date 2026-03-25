@@ -1,6 +1,7 @@
 package com.dochiri.security.audit;
 
 import com.dochiri.security.jwt.JwtPrincipal;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -8,13 +9,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
+@RequiredArgsConstructor
 public class SecurityAuditorAware implements AuditorAware<Long> {
 
     private final Long systemUserId;
-
-    public SecurityAuditorAware(Long systemUserId) {
-        this.systemUserId = systemUserId;
-    }
 
     @Override
     public Optional<Long> getCurrentAuditor() {
@@ -34,4 +32,5 @@ public class SecurityAuditorAware implements AuditorAware<Long> {
 
         return Optional.of(systemUserId);
     }
+
 }

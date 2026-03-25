@@ -11,6 +11,7 @@ dependencies {
 
     implementation 'org.springframework:spring-web'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     compileOnly 'org.springframework.data:spring-data-commons'
     compileOnly 'jakarta.servlet:jakarta.servlet-api'
     testImplementation 'jakarta.servlet:jakarta.servlet-api'

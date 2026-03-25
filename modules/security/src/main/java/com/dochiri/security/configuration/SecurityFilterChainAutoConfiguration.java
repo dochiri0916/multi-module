@@ -5,6 +5,7 @@ import com.dochiri.security.handler.JwtAccessDeniedHandler;
 import com.dochiri.security.handler.JwtAuthenticationEntryPoint;
 import com.dochiri.security.jwt.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityFilterChainAutoConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(ObjectMapper.class)
+    ObjectMapper objectMapper() {
+        return new ObjectMapper()
+                .findAndRegisterModules()
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http,
@@ -31,7 +40,7 @@ class SecurityFilterChainAutoConfiguration {
             JwtAccessDeniedHandler jwtAccessDeniedHandler,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
             SecurityProperties securityProperties
-    ) throws Exception {
+    ) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
@@ -65,4 +74,5 @@ class SecurityFilterChainAutoConfiguration {
     JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint(ObjectMapper objectMapper) {
         return new JwtAuthenticationEntryPoint(objectMapper);
     }
+
 }

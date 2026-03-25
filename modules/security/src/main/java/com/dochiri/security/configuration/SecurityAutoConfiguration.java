@@ -11,4 +11,5 @@ import org.springframework.context.annotation.Import;
         SecurityAuditAutoConfiguration.class
 })
 public class SecurityAutoConfiguration {
+
 }

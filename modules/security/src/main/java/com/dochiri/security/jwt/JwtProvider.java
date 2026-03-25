@@ -4,18 +4,17 @@ import com.dochiri.security.configuration.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
+@Slf4j
 public class JwtProvider {
-
-    private static final Logger log = LoggerFactory.getLogger(JwtProvider.class);
 
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_CATEGORY = "category";
@@ -35,7 +34,7 @@ public class JwtProvider {
     }
 
     public String generateRefreshToken(Long userId, String role) {
-        return generateToken(userId, role, CATEGORY_REFRESH, jwtProperties.refreshExpiration());
+        return generateRefreshToken(userId, role, UUID.randomUUID().toString());
     }
 
     public Instant refreshTokenExpiresAt() {
@@ -71,16 +70,47 @@ public class JwtProvider {
         return CATEGORY_REFRESH.equals(claims.get(CLAIM_CATEGORY, String.class));
     }
 
+    public String extractTokenId(Claims claims) {
+        String tokenId = claims.getId();
+        if (tokenId == null || tokenId.isBlank()) {
+            log.warn("JWT 토큰에 jti 클레임이 없거나 비어 있습니다. subject: {}", claims.getSubject());
+            throw new BadCredentialsException("JWT 토큰에 유효한 jti 클레임이 포함되어야 합니다.");
+        }
+        return tokenId;
+    }
+
+    public Instant extractExpiration(Claims claims) {
+        Date expiration = claims.getExpiration();
+        if (expiration == null) {
+            throw new BadCredentialsException("JWT 토큰에 만료 시각이 포함되어야 합니다.");
+        }
+        return expiration.toInstant();
+    }
+
+    String generateRefreshToken(Long userId, String role, String tokenId) {
+        return generateToken(userId, role, CATEGORY_REFRESH, jwtProperties.refreshExpiration(), tokenId);
+    }
+
     private String generateToken(Long userId, String role, String category, long expirationMillis) {
+        return generateToken(userId, role, category, expirationMillis, null);
+    }
+
+    private String generateToken(Long userId, String role, String category, long expirationMillis, String tokenId) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(expirationMillis);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(userId.toString())
                 .claim(CLAIM_ROLE, role)
                 .claim(CLAIM_CATEGORY, category)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(expiration))
+                .expiration(Date.from(expiration));
+
+        if (tokenId != null && !tokenId.isBlank()) {
+            builder.id(tokenId);
+        }
+
+        return builder
                 .signWith(signingKey)
                 .compact();
     }

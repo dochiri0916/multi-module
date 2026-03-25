@@ -15,4 +15,5 @@ class SecurityAuditAutoConfiguration {
     AuditorAware<Long> auditorAware(SecurityProperties securityProperties) {
         return new SecurityAuditorAware(securityProperties.systemUserId());
     }
+
 }

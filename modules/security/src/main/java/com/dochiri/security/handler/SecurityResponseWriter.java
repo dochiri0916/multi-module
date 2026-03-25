@@ -36,4 +36,5 @@ final class SecurityResponseWriter {
         response.setContentType(CONTENT_TYPE_PROBLEM_JSON);
         objectMapper.writeValue(response.getWriter(), problemDetail);
     }
+
 }

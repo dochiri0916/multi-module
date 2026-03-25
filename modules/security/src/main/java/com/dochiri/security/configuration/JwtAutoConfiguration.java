@@ -38,4 +38,5 @@ class JwtAutoConfiguration {
     RefreshTokenVerifier refreshTokenVerifier(JwtProvider jwtProvider) {
         return new RefreshTokenVerifier(jwtProvider);
     }
+
 }
