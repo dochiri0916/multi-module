@@ -23,10 +23,11 @@ class JwtTokenGeneratorTest {
     @Test
     void generateToken은_액세스_토큰과_리프레시_토큰을_모두_반환한다() {
         JwtTokenResult result = tokenGenerator.generateToken(1L, "USER");
+        Claims refreshClaims = jwtProvider.parseAndValidate(result.refreshToken());
 
         assertThat(result.accessToken()).isNotBlank();
         assertThat(result.refreshToken()).isNotBlank();
-        assertThat(result.refreshTokenExpiresAt()).isNotNull();
+        assertThat(result.refreshTokenExpiresAt()).isEqualTo(jwtProvider.extractExpiration(refreshClaims));
         assertThat(result.accessToken()).isNotEqualTo(result.refreshToken());
     }
 

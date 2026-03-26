@@ -11,7 +11,7 @@ public class JwtTokenGenerator {
     public JwtTokenResult generateToken(Long userId, String role) {
         String accessToken = jwtProvider.generateAccessToken(userId, role);
         String refreshToken = jwtProvider.generateRefreshToken(userId, role);
-        Instant refreshExpiresAt = jwtProvider.refreshTokenExpiresAt();
+        Instant refreshExpiresAt = jwtProvider.extractExpiration(jwtProvider.parseAndValidate(refreshToken));
 
         return new JwtTokenResult(accessToken, refreshToken, refreshExpiresAt);
     }

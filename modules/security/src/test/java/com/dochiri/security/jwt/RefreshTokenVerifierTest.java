@@ -45,6 +45,7 @@ class RefreshTokenVerifierTest {
         String expiredToken = expiredProvider.generateRefreshToken(1L, "USER");
 
         assertThatThrownBy(() -> verifier.verifyAndExtractUserId(expiredToken))
-                .isInstanceOf(Exception.class);
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("만료된 JWT");
     }
 }

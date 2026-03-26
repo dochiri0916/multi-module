@@ -2,6 +2,8 @@ package com.dochiri.security.jwt;
 
 import com.dochiri.security.configuration.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -9,9 +11,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 @Slf4j
 public class JwtProvider {
@@ -23,10 +28,16 @@ public class JwtProvider {
 
     private final JwtProperties jwtProperties;
     private final SecretKey signingKey;
+    private final Clock clock;
 
     public JwtProvider(JwtProperties jwtProperties) {
+        this(jwtProperties, Clock.systemUTC());
+    }
+
+    public JwtProvider(JwtProperties jwtProperties, Clock clock) {
         this.jwtProperties = jwtProperties;
         this.signingKey = Keys.hmacShaKeyFor(jwtProperties.secret().getBytes(StandardCharsets.UTF_8));
+        this.clock = requireNonNull(clock);
     }
 
     public String generateAccessToken(Long userId, String role) {
@@ -38,19 +49,37 @@ public class JwtProvider {
     }
 
     public Instant refreshTokenExpiresAt() {
-        return Instant.now().plusMillis(jwtProperties.refreshExpiration());
+        return Instant.now(clock).plusMillis(jwtProperties.refreshExpiration());
     }
 
     public Claims parseAndValidate(String token) {
-        return Jwts.parser()
-                .verifyWith(signingKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+            return Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (ExpiredJwtException exception) {
+            throw new BadCredentialsException("만료된 JWT 토큰입니다.", exception);
+        } catch (JwtException | IllegalArgumentException exception) {
+            throw new BadCredentialsException("유효하지 않은 JWT 토큰입니다.", exception);
+        }
     }
 
     public Long extractUserId(Claims claims) {
-        return Long.valueOf(claims.getSubject());
+        String subject = claims.getSubject();
+
+        if (subject == null || subject.isBlank()) {
+            log.warn("JWT 토큰에 sub 클레임이 없거나 비어 있습니다.");
+            throw new BadCredentialsException("JWT 토큰에 유효한 sub 클레임이 포함되어야 합니다.");
+        }
+
+        try {
+            return Long.valueOf(subject);
+        } catch (NumberFormatException exception) {
+            log.warn("JWT 토큰의 sub 클레임이 숫자가 아닙니다. subject: {}", subject);
+            throw new BadCredentialsException("JWT 토큰에 유효한 sub 클레임이 포함되어야 합니다.", exception);
+        }
     }
 
     public String extractRole(Claims claims) {
@@ -96,7 +125,7 @@ public class JwtProvider {
     }
 
     private String generateToken(Long userId, String role, String category, long expirationMillis, String tokenId) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         Instant expiration = now.plusMillis(expirationMillis);
 
         var builder = Jwts.builder()
@@ -114,4 +143,5 @@ public class JwtProvider {
                 .signWith(signingKey)
                 .compact();
     }
+
 }
