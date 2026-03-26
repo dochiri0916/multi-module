@@ -30,4 +30,5 @@ public class SecurityJpaAutoConfiguration {
     ) {
         return new RefreshTokenService(refreshTokenRepository, jwtTokenGenerator, jwtProvider, clock);
     }
+
 }

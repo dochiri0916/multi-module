@@ -20,4 +20,5 @@ class SecurityJpaPackageRegistrar implements ImportBeanDefinitionRegistrar {
                 RefreshTokenRepository.class.getPackageName()
         );
     }
+
 }
