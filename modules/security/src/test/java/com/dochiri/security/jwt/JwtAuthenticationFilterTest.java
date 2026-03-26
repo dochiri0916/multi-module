@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class JwtAuthenticationFilterTest {
@@ -93,5 +94,19 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void 예상하지_못한_런타임_예외는_전파된다() {
+        JwtAuthenticationConverter converter = mock(JwtAuthenticationConverter.class);
+        JwtAuthenticationFilter exceptionalFilter = new JwtAuthenticationFilter(converter);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer unexpected-error-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(converter.convert("unexpected-error-token")).thenThrow(new IllegalStateException("boom"));
+
+        assertThatThrownBy(() -> exceptionalFilter.doFilterInternal(request, response, filterChain))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("boom");
     }
 }

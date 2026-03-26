@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 public class JwtProvider {
 
+    private static final String ROLE_PREFIX = "ROLE_";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_CATEGORY = "category";
     private static final String CATEGORY_ACCESS = "access";
@@ -83,12 +84,7 @@ public class JwtProvider {
     }
 
     public String extractRole(Claims claims) {
-        String role = claims.get(CLAIM_ROLE, String.class);
-        if (role == null || role.isBlank()) {
-            log.warn("JWT 토큰에 role 클레임이 없거나 비어 있습니다. subject: {}", claims.getSubject());
-            throw new BadCredentialsException("JWT 토큰에 유효한 role 클레임이 포함되어야 합니다.");
-        }
-        return role;
+        return normalizeRole(claims.get(CLAIM_ROLE, String.class), claims.getSubject());
     }
 
     public boolean isAccessToken(Claims claims) {
@@ -125,12 +121,14 @@ public class JwtProvider {
     }
 
     private String generateToken(Long userId, String role, String category, long expirationMillis, String tokenId) {
+        requireNonNull(userId, "userId는 null일 수 없습니다.");
+        String normalizedRole = normalizeRole(role, userId.toString());
         Instant now = Instant.now(clock);
         Instant expiration = now.plusMillis(expirationMillis);
 
         var builder = Jwts.builder()
                 .subject(userId.toString())
-                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_ROLE, normalizedRole)
                 .claim(CLAIM_CATEGORY, category)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration));
@@ -142,6 +140,26 @@ public class JwtProvider {
         return builder
                 .signWith(signingKey)
                 .compact();
+    }
+
+    private String normalizeRole(String role, String subject) {
+        if (role == null || role.isBlank()) {
+            log.warn("JWT 토큰에 role 클레임이 없거나 비어 있습니다. subject: {}", subject);
+            throw new BadCredentialsException("JWT 토큰에 유효한 role 클레임이 포함되어야 합니다.");
+        }
+
+        String trimmedRole = role.trim();
+
+        if (trimmedRole.startsWith(ROLE_PREFIX)) {
+            trimmedRole = trimmedRole.substring(ROLE_PREFIX.length());
+        }
+
+        if (trimmedRole.isBlank()) {
+            log.warn("JWT 토큰의 role 클레임이 비어 있습니다. subject: {}", subject);
+            throw new BadCredentialsException("JWT 토큰에 유효한 role 클레임이 포함되어야 합니다.");
+        }
+
+        return trimmedRole;
     }
 
 }

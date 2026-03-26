@@ -55,4 +55,17 @@ class JwtAuthenticationConverterTest {
                 .extracting(Object::toString)
                 .containsExactly("ROLE_ADMIN");
     }
+
+    @Test
+    void ROLE_접두사가_있는_role도_ROLE_ADMIN_권한으로_정규화된다() {
+        String token = jwtProvider.generateAccessToken(99L, "ROLE_ADMIN");
+
+        UsernamePasswordAuthenticationToken authentication = converter.convert(token);
+        JwtPrincipal principal = (JwtPrincipal) authentication.getPrincipal();
+
+        assertThat(principal.role()).isEqualTo("ADMIN");
+        assertThat(authentication.getAuthorities())
+                .extracting(Object::toString)
+                .containsExactly("ROLE_ADMIN");
+    }
 }

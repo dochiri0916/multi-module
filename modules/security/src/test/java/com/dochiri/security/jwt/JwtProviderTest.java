@@ -107,6 +107,14 @@ class JwtProviderTest {
     }
 
     @Test
+    void ROLE_접두사가_있는_role은_정규화된다() {
+        String token = jwtProvider.generateAccessToken(1L, "ROLE_ADMIN");
+        Claims claims = jwtProvider.parseAndValidate(token);
+
+        assertThat(jwtProvider.extractRole(claims)).isEqualTo("ADMIN");
+    }
+
+    @Test
     void sub_클레임이_숫자가_아니면_BadCredentialsException이_발생한다() {
         String token = buildToken("not-a-number", "USER", "access", null, Instant.now().plusMillis(ACCESS_EXPIRATION));
         Claims claims = jwtProvider.parseAndValidate(token);
@@ -114,6 +122,20 @@ class JwtProviderTest {
         assertThatThrownBy(() -> jwtProvider.extractUserId(claims))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessageContaining("sub");
+    }
+
+    @Test
+    void userId가_null이면_토큰_생성에_실패한다() {
+        assertThatThrownBy(() -> jwtProvider.generateAccessToken(null, "USER"))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("userId");
+    }
+
+    @Test
+    void role이_blank이면_토큰_생성에_실패한다() {
+        assertThatThrownBy(() -> jwtProvider.generateAccessToken(1L, " "))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("role");
     }
 
     @Test
