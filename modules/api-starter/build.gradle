@@ -3,8 +3,12 @@ description = 'api-starter-module'
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-webmvc'
     api 'org.springframework.boot:spring-boot-starter-validation'
+    api 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
 
     api project(':modules:error-handling')
     api project(':modules:time')
     api project(':modules:security-jpa')
+
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+    testRuntimeOnly 'com.h2database:h2'
 }

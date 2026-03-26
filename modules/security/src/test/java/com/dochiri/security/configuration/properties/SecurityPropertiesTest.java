@@ -9,10 +9,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityPropertiesTest {
 
     @Test
-    void publicEndpoints가_null이면_빈_리스트가_된다() {
+    void publicEndpoints가_null이면_스웨거_기본_공개_경로가_추가된다() {
         SecurityProperties properties = new SecurityProperties(null, null);
 
-        assertThat(properties.publicEndpoints()).isEmpty();
+        assertThat(properties.publicEndpoints()).containsExactly(
+                "/swagger-ui.html",
+                "/swagger-ui/**",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/v3/api-docs.yaml"
+        );
     }
 
     @Test
@@ -27,7 +33,14 @@ class SecurityPropertiesTest {
         SecurityProperties properties = new SecurityProperties(
                 List.of("/api/auth/**"), 999L);
 
-        assertThat(properties.publicEndpoints()).containsExactly("/api/auth/**");
+        assertThat(properties.publicEndpoints()).containsExactly(
+                "/swagger-ui.html",
+                "/swagger-ui/**",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/v3/api-docs.yaml",
+                "/api/auth/**"
+        );
         assertThat(properties.systemUserId()).isEqualTo(999L);
     }
 }
