@@ -31,4 +31,5 @@ public class JwtAuthenticationConverter {
                 List.of(new SimpleGrantedAuthority("ROLE_" + role))
         );
     }
+
 }
