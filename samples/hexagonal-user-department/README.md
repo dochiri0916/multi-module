@@ -1,6 +1,7 @@
 # Hexagonal User Department Sample
 
 `User`, `Department` 도메인을 가진 실행 가능한 hexagonal 샘플 프로젝트다.
+`dochiri-api-starter` 하나만으로 동작하는 공개 API/JPA/security 예제다.
 
 ## 구조
 

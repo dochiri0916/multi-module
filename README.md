@@ -128,7 +128,6 @@ spring:
 
 time:
   timezone: Asia/Seoul
-
 jwt:
   secret: test-secret-key-that-is-at-least-32-characters-long
   access-expiration: 3600000
@@ -450,7 +449,7 @@ curl http://localhost:8080/api/me -H 'Authorization: Bearer <accessToken>'
 
 ## 개별 모듈 직접 사용
 
-기본 경로는 `dochiri-api-starter`지만, 필요하면 개별 모듈만 직접 의존할 수 있다.
+기본 경로는 starter 사용이지만, 필요하면 개별 모듈만 직접 의존할 수 있다.
 
 ```gradle
 dependencies {
