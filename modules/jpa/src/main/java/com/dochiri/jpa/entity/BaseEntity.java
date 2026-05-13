@@ -25,10 +25,11 @@ public abstract class BaseEntity {
     private Instant updatedAt;
 
     @CreatedBy
-    @Column(nullable = false, updatable = false)
-    private Long createdBy;
+    @Column(nullable = false, updatable = false, length = 36)
+    private String createdBy;
 
     @LastModifiedBy
-    private Long updatedBy;
+    @Column(nullable = false, length = 36)
+    private String updatedBy;
 
 }

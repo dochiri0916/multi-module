@@ -15,9 +15,9 @@ class JpaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditorAware.class)
-    AuditorAware<Long> fallbackAuditorAware(Environment environment) {
+    AuditorAware<String> fallbackAuditorAware(Environment environment) {
         JpaAuditProperties properties = JpaAuditProperties.from(environment);
-        return () -> Optional.of(properties.systemUserId());
+        return () -> Optional.of(properties.systemUserId().toString());
     }
 
 }
