@@ -44,7 +44,7 @@ class JpaSecurityAuditingIntegrationTest {
     void 인증정보가_없으면_security_systemUserId가_auditor로_사용된다() {
         AuditedSecurityEntity entity = repository.saveAndFlush(new AuditedSecurityEntity("system"));
 
-        assertThat(entity.getCreatedBy()).isEqualTo(99L);
+        assertThat(entity.getCreatedBy()).isEqualTo("99");
     }
 
     @Test
@@ -53,7 +53,7 @@ class JpaSecurityAuditingIntegrationTest {
 
         AuditedSecurityEntity entity = repository.saveAndFlush(new AuditedSecurityEntity("authenticated"));
 
-        assertThat(entity.getCreatedBy()).isEqualTo(123L);
+        assertThat(entity.getCreatedBy()).isEqualTo("123");
     }
 
     @Test
@@ -70,7 +70,7 @@ class JpaSecurityAuditingIntegrationTest {
 
         assertThat(updated.getUpdatedAt()).isNotNull();
         assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(createdAt);
-        assertThat(updated.getUpdatedBy()).isEqualTo(456L);
+        assertThat(updated.getUpdatedBy()).isEqualTo("456");
     }
 
     private void authenticate(Long userId) {

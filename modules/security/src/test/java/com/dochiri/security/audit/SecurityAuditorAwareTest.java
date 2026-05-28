@@ -24,9 +24,9 @@ class SecurityAuditorAwareTest {
 
     @Test
     void 인증정보가_없으면_시스템_사용자_ID를_반환한다() {
-        Optional<Long> auditor = auditorAware.getCurrentAuditor();
+        Optional<String> auditor = auditorAware.getCurrentAuditor();
 
-        assertThat(auditor).hasValue(0L);
+        assertThat(auditor).hasValue("0");
     }
 
     @Test
@@ -36,9 +36,9 @@ class SecurityAuditorAwareTest {
                 principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        Optional<Long> auditor = auditorAware.getCurrentAuditor();
+        Optional<String> auditor = auditorAware.getCurrentAuditor();
 
-        assertThat(auditor).hasValue(42L);
+        assertThat(auditor).hasValue("42");
     }
 
     @Test
@@ -47,9 +47,9 @@ class SecurityAuditorAwareTest {
                 "key", "anonymous", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        Optional<Long> auditor = auditorAware.getCurrentAuditor();
+        Optional<String> auditor = auditorAware.getCurrentAuditor();
 
-        assertThat(auditor).hasValue(0L);
+        assertThat(auditor).hasValue("0");
     }
 
     @Test
@@ -58,17 +58,17 @@ class SecurityAuditorAwareTest {
                 "stringPrincipal", null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        Optional<Long> auditor = auditorAware.getCurrentAuditor();
+        Optional<String> auditor = auditorAware.getCurrentAuditor();
 
-        assertThat(auditor).hasValue(0L);
+        assertThat(auditor).hasValue("0");
     }
 
     @Test
     void 커스텀_시스템_사용자_ID를_사용할_수_있다() {
         SecurityAuditorAware customAuditor = new SecurityAuditorAware(999L);
 
-        Optional<Long> auditor = customAuditor.getCurrentAuditor();
+        Optional<String> auditor = customAuditor.getCurrentAuditor();
 
-        assertThat(auditor).hasValue(999L);
+        assertThat(auditor).hasValue("999");
     }
 }

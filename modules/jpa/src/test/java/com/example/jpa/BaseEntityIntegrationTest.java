@@ -33,7 +33,7 @@ class BaseEntityIntegrationTest {
 
         assertThat(jpaQueryFactory).isNotNull();
         assertThat(entity.getCreatedAt()).isNotNull();
-        assertThat(entity.getCreatedBy()).isEqualTo(7L);
+        assertThat(entity.getCreatedBy()).isEqualTo("7");
     }
 
     @Test
@@ -46,7 +46,7 @@ class BaseEntityIntegrationTest {
         AuditableEntity updated = auditableEntityRepository.saveAndFlush(entity);
 
         assertThat(updated.getUpdatedAt()).isNotNull();
-        assertThat(updated.getUpdatedBy()).isEqualTo(7L);
+        assertThat(updated.getUpdatedBy()).isEqualTo("7");
     }
 
     @SpringBootApplication

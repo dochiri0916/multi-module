@@ -12,7 +12,7 @@ class SecurityAuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditorAware.class)
-    AuditorAware<Long> auditorAware(SecurityProperties securityProperties) {
+    AuditorAware<String> auditorAware(SecurityProperties securityProperties) {
         return new SecurityAuditorAware(securityProperties.systemUserId());
     }
 
