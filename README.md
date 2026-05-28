@@ -1,21 +1,22 @@
 # multi-module
 
-Spring Boot 4 기반 공통 라이브러리 레포입니다. 이 레포는 실행 애플리케이션이 아니라, 다른 Spring Boot 프로젝트에서 재사용할 모듈을 관리합니다.
+Spring Boot 4 기반 공통 라이브러리 레포입니다. 이 레포는 실행 애플리케이션이 아니라, 모놀리식 애플리케이션과 MSA 서비스에서 재사용할 모듈 artifact를 관리합니다.
 
-기본 사용 경로는 `dochiri-api-starter` 하나를 의존받는 방식입니다.
+소비 프로젝트는 필요한 모듈만 선택해서 의존합니다.
 
 ## 제공 모듈
 
 | 구분 | artifactId | 역할 |
 | --- | --- | --- |
-| 기본 진입점 | `dochiri-api-starter` | `webmvc + validation + swagger + error-handling + time + jpa + security + security-jpa` 묶음 |
-| 내부 모듈 | `dochiri-error-handling` | `BaseException`, `ErrorCode`, `GlobalExceptionHandler` |
-| 내부 모듈 | `dochiri-time` | `Clock`, `time.timezone` 설정 |
-| 내부 모듈 | `dochiri-jpa` | `BaseEntity`, JPA Auditing, `JPAQueryFactory` |
-| 내부 모듈 | `dochiri-security` | JWT 발급/검증, 기본 `SecurityFilterChain`, CORS, Auditing 연동 |
-| 내부 모듈 | `dochiri-security-jpa` | refresh token persistence (`RefreshToken`, `RefreshTokenRepository`, `RefreshTokenService`), `User` 엔티티는 제공하지 않음 |
+| 모듈 | artifactId | 역할 |
+| --- | --- | --- |
+| error-handling | `dochiri-error-handling` | `BaseException`, `ErrorCode`, `GlobalExceptionHandler`, validation error response |
+| time | `dochiri-time` | `Clock`, `time.timezone` 설정 |
+| jpa | `dochiri-jpa` | `BaseEntity`, JPA Auditing, `JPAQueryFactory` |
+| security | `dochiri-security` | JWT 발급/검증, 기본 `SecurityFilterChain`, CORS, Auditing 연동 |
+| security-jpa | `dochiri-security-jpa` | refresh token persistence (`RefreshToken`, `RefreshTokenRepository`, `RefreshTokenService`), `User` 엔티티는 제공하지 않음 |
 
-소비 프로젝트는 특별한 이유가 없으면 내부 모듈을 직접 조합하지 말고 `dochiri-api-starter`를 사용하시는 편이 좋습니다.
+`dochiri-security-jpa`는 `dochiri-security`, `dochiri-jpa`에 의존합니다. refresh token 저장 기능까지 필요하면 `dochiri-security-jpa`를 의존하고, JWT만 필요하면 `dochiri-security`만 의존합니다.
 
 ## 기본 사용 흐름
 
@@ -31,7 +32,7 @@ Spring Boot 4 기반 공통 라이브러리 레포입니다. 이 레포는 실�
 ./gradlew publishToMavenLocal
 ```
 
-3. 별도 Spring Boot 프로젝트에서 `mavenLocal()`로 `dochiri-api-starter`를 의존받습니다.
+3. 별도 Spring Boot 프로젝트에서 `mavenLocal()`로 필요한 `dochiri-*` 모듈을 의존받습니다.
 4. 소비 프로젝트를 `bootRun`으로 기동해서 실제 계약을 확인합니다.
 
 이 레포 자체는 `bootRun` 대상이 아닙니다.
@@ -44,7 +45,7 @@ Spring Boot 4 기반 공통 라이브러리 레포입니다. 이 레포는 실�
 
 - `H2 Database`
 
-그 다음 이 레포에서 먼저 `./gradlew publishToMavenLocal`을 실행한 뒤, 소비 프로젝트 `build.gradle`에 로컬 Maven과 starter를 추가합니다.
+그 다음 이 레포에서 먼저 `./gradlew publishToMavenLocal`을 실행한 뒤, 소비 프로젝트 `build.gradle`에 로컬 Maven과 필요한 모듈을 추가합니다.
 
 ```gradle
 plugins {
@@ -68,7 +69,12 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
 
     runtimeOnly 'com.h2database:h2'
 
@@ -85,25 +91,48 @@ tasks.named('test') {
 
 - `mavenLocal()`이 없으면 로컬 publish artifact를 찾지 못합니다.
 - 이 레포에서 코드나 버전을 바꾸셨다면 다시 `./gradlew publishToMavenLocal`을 실행하셔야 합니다.
-- `dochiri-api-starter`는 `spring-boot-starter-webmvc`, `spring-boot-starter-validation`, `dochiri-error-handling`, `dochiri-time`, `dochiri-security-jpa`를 함께 제공합니다.
-- Swagger/OpenAPI 문서는 starter에 포함되므로 별도 의존성 추가 없이 바로 사용하실 수 있습니다.
+- 공통 모듈은 Spring Boot starter 자체를 대체하지 않습니다. Web MVC, validation, DB driver, Swagger 같은 애플리케이션 의존성은 소비 프로젝트가 직접 선택합니다.
 - DB 드라이버는 소비 프로젝트에서 직접 선택해서 추가하셔야 합니다. 예시에서는 H2를 사용합니다.
 
-## starter 적용 의존성
+## 모듈 조합 예시
 
-`dochiri-api-starter`를 의존하면 아래 항목을 함께 받습니다.
+기본 Web API:
 
-- `org.springframework.boot:spring-boot-starter-webmvc`
-- `org.springframework.boot:spring-boot-starter-validation`
-- `org.springdoc:springdoc-openapi-starter-webmvc-ui`
-- `com.dochiri:dochiri-error-handling`
-- `com.dochiri:dochiri-time`
-- `com.dochiri:dochiri-security-jpa`
+```gradle
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+}
+```
 
-즉 소비 프로젝트에서 별도로 validation starter를 추가하지 않아도 `@Valid`, `@Validated`, `jakarta.validation.constraints.*`를 바로 사용하실 수 있습니다.
-`dochiri-security-jpa`가 `dochiri-jpa`, `dochiri-security`까지 함께 끌고 오므로 refresh token 저장 기능도 바로 사용하실 수 있습니다.
-Swagger UI와 OpenAPI 문서도 별도 설정 없이 기본 경로로 바로 노출됩니다.
-다만 사용자 도메인 자체는 포함하지 않습니다. `User`, `Member`, `Account` 같은 엔티티와 repository는 소비 프로젝트가 직접 가져야 합니다.
+JPA 포함 API:
+
+```gradle
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
+}
+```
+
+JWT와 refresh token 저장 포함 API:
+
+```gradle
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
+}
+```
+
+사용자 도메인 자체는 포함하지 않습니다. `User`, `Member`, `Account` 같은 엔티티와 repository는 소비 프로젝트가 직접 가져야 합니다.
 
 ## 필수 설정
 
@@ -143,10 +172,10 @@ security:
 
 - `time`, `jwt`, `cors`, `security`는 `spring:` 아래가 아니라 최상위 prefix입니다.
 - `jwt.secret`은 32자 이상이어야 합니다.
-- JPA auditing 기본 사용자 값은 `security.system-user-id`를 사용합니다. 이전 키인 `dochiri.jpa.audit.system-user-id`도 하위 호환으로 읽습니다.
+- JPA auditing 기본 사용자 값은 `security.system-user-id`를 사용하며, 엔티티에는 문자열로 저장됩니다. 이전 키인 `dochiri.jpa.audit.system-user-id`도 하위 호환으로 읽습니다.
 - Swagger 경로인 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`은 기본 공개 경로에 포함되므로 따로 추가하지 않으셔도 됩니다.
 
-## starter가 제공하는 기능
+## 모듈 기능
 
 ### 시간
 
@@ -206,7 +235,7 @@ throw new BaseException(UserErrorCode.USER_NOT_FOUND);
 throw BaseException.of(UserErrorCode.USER_NOT_FOUND, "userId", userId);
 ```
 
-전역 예외 처리를 활성화합니다.
+전역 예외 처리는 소비 프로젝트에서 직접 등록합니다.
 
 ```java
 @RestControllerAdvice
@@ -228,9 +257,12 @@ public class ApiExceptionHandler extends GlobalExceptionHandler {
 }
 ```
 
+`ErrorCode`는 기존 `getHttpStatus()`를 유지하면서 `getStatusCode()` default method를 제공합니다.
+신규 내부 구현은 `HttpStatusCode` 기반 API를 사용합니다.
+
 ### Validation
 
-`dochiri-api-starter`만 의존해도 바로 사용하실 수 있습니다.
+소비 프로젝트가 `spring-boot-starter-validation`과 `dochiri-error-handling`을 함께 의존하면 사용할 수 있습니다.
 
 ```java
 public record CreatePostRequest(
@@ -243,26 +275,30 @@ void create(@Valid @RequestBody CreatePostRequest request) {
 }
 ```
 
+validation 실패 응답 예시:
+
+```json
+{
+  "type": "/errors/validation-error",
+  "title": "VALIDATION_ERROR",
+  "status": 400,
+  "detail": "요청 값이 올바르지 않습니다.",
+  "instance": "/api/public/posts",
+  "code": "VALIDATION_ERROR",
+  "fieldErrors": [
+    {
+      "field": "title",
+      "rejectedValue": "",
+      "reason": "must not be blank",
+      "messageCode": "NotBlank"
+    }
+  ]
+}
+```
+
 ### Swagger
 
-`dochiri-api-starter`를 의존하면 Swagger UI와 OpenAPI 문서가 자동으로 활성화됩니다.
-
-- Swagger UI: `/swagger-ui.html`
-- OpenAPI JSON: `/v3/api-docs`
-- OpenAPI YAML: `/v3/api-docs.yaml`
-
-기본 보안 설정에서도 위 경로는 자동으로 공개됩니다.
-즉 `security.public-endpoints`에 Swagger 경로를 다시 적지 않으셔도 됩니다.
-
-원하시면 `springdoc` 표준 속성으로 비활성화하거나 경로를 바꾸실 수 있습니다.
-
-```yaml
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    enabled: true
-```
+Swagger/OpenAPI는 현재 공통 모듈에서 제공하지 않습니다. 필요한 서비스가 직접 `springdoc-openapi-starter-webmvc-ui` 같은 의존성을 선택해서 추가합니다.
 
 ### JPA
 
@@ -295,10 +331,10 @@ public class Post extends BaseEntity {
 
 - `BaseEntity`는 `createdAt`, `updatedAt`, `createdBy`, `updatedBy`만 제공합니다.
 - 식별자 필드와 생성 전략은 각 엔티티가 직접 정합니다.
-- `createdBy`, `updatedBy`는 `Long`
+- `createdBy`, `updatedBy`는 `String`
 - `JpaRepository.delete*` 계열 메서드는 기본 JPA 동작대로 물리 삭제합니다.
 - `JPAQueryFactory`는 자동 등록됩니다.
-- 미인증 요청은 `security.system-user-id`를 감사자 값으로 사용합니다.
+- 미인증 요청은 `security.system-user-id`를 문자열 감사자 값으로 사용합니다.
 
 soft delete는 공통 모듈이 강제하지 않습니다.
 필요하시면 소비 프로젝트에서 엔티티 필드, 조회 조건, 삭제 정책을 직접 정의하시는 편이 맞습니다.
@@ -312,7 +348,7 @@ Querydsl 사용:
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
 
     annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
@@ -455,7 +491,7 @@ Map<String, Object> me(@AuthenticationPrincipal JwtPrincipal principal) {
 
 `refreshTokenExpiresAt`은 `Instant`입니다.
 
-starter에는 아래 항목도 포함됩니다.
+`dochiri-security-jpa`에는 아래 항목이 포함됩니다.
 
 - `RefreshToken` 엔티티
 - `RefreshTokenRepository`
@@ -516,32 +552,15 @@ security:
 3. `BaseException` 응답 확인
 4. `BaseEntity` 저장 후 `createdAt`, `createdBy` 확인
 5. JWT 발급 확인
-6. `/swagger-ui.html`, `/v3/api-docs` 접근 확인
-7. `Authorization: Bearer <token>`으로 보호 엔드포인트 접근 확인
+6. Swagger를 직접 추가했다면 `/swagger-ui.html`, `/v3/api-docs` 접근 확인
+7. security 모듈을 사용한다면 `Authorization: Bearer <token>`으로 보호 엔드포인트 접근 확인
 
 실제 검증 예시:
 
 ```bash
 curl http://localhost:8080/api/public/ping
 curl http://localhost:8080/api/public/error
-curl http://localhost:8080/v3/api-docs
 curl -X POST http://localhost:8080/api/public/posts -H 'Content-Type: application/json' -d '{"title":"hello"}'
 curl -X POST http://localhost:8080/api/auth/token
 curl http://localhost:8080/api/me -H 'Authorization: Bearer <accessToken>'
 ```
-
-## 개별 모듈 직접 사용
-
-기본 경로는 starter 사용이지만, 필요하시면 개별 모듈만 직접 의존하실 수도 있습니다.
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
-}
-```
-
-이 경로는 모듈 조합 책임이 소비자에게 생기므로, 특별한 이유가 없으면 권장하지 않습니다.
