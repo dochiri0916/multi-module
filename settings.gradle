@@ -1,7 +1,6 @@
 rootProject.name = 'multi-module'
 
 include(
-    'modules:api-starter',
     'modules:error-handling',
     'modules:jpa',
     'modules:security',
