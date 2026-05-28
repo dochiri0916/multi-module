@@ -1,10 +1,9 @@
 package com.dochiri.errorhandling;
 
 import lombok.Getter;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 
-import java.net.URI;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -15,37 +14,32 @@ public class BaseException extends ErrorResponseException {
     private final ErrorCode errorCode;
 
     public BaseException(ErrorCode errorCode) {
-        this(errorCode, Map.of());
+        this(errorCode, Map.of(), null);
     }
 
     public BaseException(ErrorCode errorCode, Map<String, Object> properties) {
-        super(requireErrorCode(errorCode).getHttpStatus(), createBody(errorCode), null);
+        this(errorCode, properties, null);
+    }
+
+    public BaseException(ErrorCode errorCode, Throwable cause) {
+        this(errorCode, Map.of(), cause);
+    }
+
+    public BaseException(ErrorCode errorCode, Map<String, Object> properties, Throwable cause) {
+        super(requireErrorCode(errorCode).getStatusCode(), ProblemDetails.from(errorCode, requireProperties(properties)), cause);
         this.errorCode = errorCode;
-
-        getBody().setProperty("code", errorCode.name());
-
-        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            getBody().setProperty(entry.getKey(), entry.getValue());
-        }
     }
 
     public static BaseException of(ErrorCode errorCode, Object... keyValues) {
         return new BaseException(errorCode, mapArgs(keyValues));
     }
 
-    private static ProblemDetail createBody(ErrorCode errorCode) {
-        ProblemDetail body = ProblemDetail.forStatusAndDetail(errorCode.getHttpStatus(), errorCode.getMessage());
-        body.setType(URI.create("/errors/" + toKebabCase(errorCode.name())));
-        body.setTitle(errorCode.name());
-        return body;
-    }
-
     private static ErrorCode requireErrorCode(ErrorCode errorCode) {
         return Objects.requireNonNull(errorCode, "errorCode는 필수입니다.");
     }
 
-    private static String toKebabCase(String name) {
-        return name.toLowerCase().replace('_', '-');
+    private static Map<String, Object> requireProperties(Map<String, Object> properties) {
+        return Objects.requireNonNull(properties, "properties는 필수입니다.");
     }
 
     private static Map<String, Object> mapArgs(Object[] args) {
@@ -59,11 +53,14 @@ public class BaseException extends ErrorResponseException {
 
         Map<String, Object> mapped = new LinkedHashMap<>();
         for (int index = 0; index < args.length; index += 2) {
-            String key = String.valueOf(args[index]);
+            Object rawKey = args[index];
+            if (!(rawKey instanceof String key)) {
+                throw new IllegalArgumentException("property key는 String이어야 합니다.");
+            }
             Object value = args[index + 1];
             mapped.put(key, value);
         }
-        return Map.copyOf(mapped);
+        return Collections.unmodifiableMap(mapped);
     }
 
 }

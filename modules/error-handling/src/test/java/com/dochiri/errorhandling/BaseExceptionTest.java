@@ -2,6 +2,7 @@ package com.dochiri.errorhandling;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 
 import java.util.Map;
@@ -71,9 +72,42 @@ class BaseExceptionTest {
     }
 
     @Test
+    void of_팩토리_메서드에_String이_아닌_key를_전달하면_예외가_발생한다() {
+        assertThatThrownBy(() -> BaseException.of(TestErrorCode.TEST_ERROR, 1, "value"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void ErrorCode가_null이면_NullPointerException이_발생한다() {
         assertThatThrownBy(() -> new BaseException(null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void properties가_null이면_NullPointerException이_발생한다() {
+        assertThatThrownBy(() -> new BaseException(TestErrorCode.TEST_ERROR, (Map<String, Object>) null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void 예약된_속성을_전달하면_예외가_발생한다() {
+        assertThatThrownBy(() -> new BaseException(TestErrorCode.TEST_ERROR, Map.of("code", "OTHER")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void 빈_key를_전달하면_예외가_발생한다() {
+        assertThatThrownBy(() -> BaseException.of(TestErrorCode.TEST_ERROR, " ", "value"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void cause를_전달하면_원인_예외가_유지된다() {
+        RuntimeException cause = new RuntimeException("원인");
+
+        BaseException exception = new BaseException(TestErrorCode.TEST_ERROR, cause);
+
+        assertThat(exception.getCause()).isSameAs(cause);
     }
 
     @Test
@@ -82,6 +116,13 @@ class BaseExceptionTest {
 
         assertThat(exception.getErrorCode()).isEqualTo(TestErrorCode.SERVER_ERROR);
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    void ErrorCode는_getStatusCode_default_method로_HttpStatusCode를_제공한다() {
+        HttpStatusCode statusCode = TestErrorCode.TEST_ERROR.getStatusCode();
+
+        assertThat(statusCode).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
