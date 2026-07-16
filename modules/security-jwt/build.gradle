@@ -1,5 +1,9 @@
 description = 'security-jwt-adapter-module'
 
+hexagonalConvention {
+    basePackage = 'com.dochiri'
+}
+
 dependencies {
     api project(':modules:security-application')
     implementation 'org.springframework.boot:spring-boot-autoconfigure'

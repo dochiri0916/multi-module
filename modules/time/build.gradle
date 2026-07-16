@@ -1,5 +1,9 @@
 description = 'time-module'
 
+hexagonalConvention {
+    basePackage = 'com.dochiri'
+}
+
 dependencies {
     api 'org.springframework:spring-context'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'

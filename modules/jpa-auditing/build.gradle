@@ -1,5 +1,9 @@
 description = 'jpa-auditing-module'
 
+hexagonalConvention {
+    basePackage = 'com.dochiri'
+}
+
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'

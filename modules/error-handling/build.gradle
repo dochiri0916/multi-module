@@ -1,5 +1,9 @@
 description = 'error-handling-webmvc-module'
 
+hexagonalConvention {
+    basePackage = 'com.dochiri.errorhandling'
+}
+
 dependencies {
     api 'org.springframework:spring-web'
     api 'org.springframework:spring-webmvc'

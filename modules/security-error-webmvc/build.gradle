@@ -1,5 +1,9 @@
 description = 'security-error-webmvc-adapter-module'
 
+hexagonalConvention {
+    basePackage = 'com.dochiri'
+}
+
 dependencies {
     api project(':modules:security-application')
     api project(':modules:error-handling')

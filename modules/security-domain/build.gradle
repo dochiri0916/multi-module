@@ -1,1 +1,5 @@
 description = 'security-domain-module'
+
+hexagonalConvention {
+    basePackage = 'com.dochiri'
+}
