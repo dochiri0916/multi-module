@@ -1,10 +1,10 @@
 package com.example.member.adapter.in.web;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMapping;
-import com.dochiri.errorhandling.ErrorCodeMappingProvider;
-import com.dochiri.errorhandling.MappedApiError;
-import com.dochiri.errorhandling.ProblemType;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMapping;
+import com.dochiri.errorhandling.global.error.ErrorCodeMappingProvider;
+import com.dochiri.errorhandling.global.error.MappedApiError;
+import com.dochiri.errorhandling.global.error.ProblemType;
 import com.example.member.application.exception.MemberApplicationErrorCode;
 import com.example.member.application.exception.MemberNotFoundException;
 import org.springframework.http.HttpStatus;

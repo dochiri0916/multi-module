@@ -12,7 +12,7 @@ class CorsPropertiesTest {
 
     @Test
     @DisplayName("허용 origin 목록을 방어적으로 복사한다")
-    void 허용_origin_목록을_방어적으로_복사한다() {
+    void copiesAllowedOriginsDefensively() {
         // given
         List<String> mutableOrigins = new ArrayList<>(List.of("https://client.example"));
         CorsProperties properties = new CorsProperties(mutableOrigins);

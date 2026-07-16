@@ -24,7 +24,7 @@ final class RefreshSessionMapper {
                 ? RefreshSessionStatus.ACTIVE
                 : RefreshSessionStatus.REVOKED;
         return RefreshSession.reconstitute(
-                new RefreshSessionId(entity.getSessionId()),
+                new RefreshSessionId(entity.getRefreshSessionId()),
                 new TokenId(entity.getCurrentTokenId()),
                 new AuthenticationSubject(entity.getSubjectId()),
                 new AuthenticationRole(entity.getRoleName()),

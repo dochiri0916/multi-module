@@ -47,7 +47,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("유효한 Refresh Token과 세션 정보를 자체 타입으로 검증한다")
-    void 유효한_Refresh_Token과_세션_정보를_자체_타입으로_검증한다() {
+    void verifiesRefreshTokenAndSessionValuesWithOwnTypes() {
         // given
         EncodedToken token = refreshToken(builder -> builder.claim(SESSION_ID_CLAIM, SESSION_ID.value()));
 
@@ -65,7 +65,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("Access Token을 Refresh Token으로 검증하면 category 오류로 거부한다")
-    void Access_Token을_Refresh_Token으로_검증하면_category_오류로_거부한다() {
+    void rejectsAccessTokenCategoryAsRefreshToken() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -80,7 +80,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("형식이 잘못된 Refresh Token을 Application 오류로 변환한다")
-    void 형식이_잘못된_Refresh_Token을_Application_오류로_변환한다() {
+    void mapsMalformedRefreshTokenToApplicationError() {
         // given
         EncodedToken malformed = new EncodedToken("not-a-jwt");
 
@@ -90,7 +90,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("만료된 Refresh Token을 전용 오류로 거부한다")
-    void 만료된_Refresh_Token을_전용_오류로_거부한다() {
+    void rejectsExpiredRefreshToken() {
         // given
         EncodedToken expired = refreshToken(builder ->
                 builder.expiration(Date.from(Instant.parse("2020-01-01T00:00:00Z"))));
@@ -101,7 +101,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("subject가 없는 Refresh Token을 전용 오류로 거부한다")
-    void subject가_없는_Refresh_Token을_전용_오류로_거부한다() {
+    void rejectsRefreshTokenWithoutSubject() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .claim(ROLE_CLAIM, ROLE.value())
@@ -115,7 +115,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("role이 없는 Refresh Token을 전용 오류로 거부한다")
-    void role이_없는_Refresh_Token을_전용_오류로_거부한다() {
+    void rejectsRefreshTokenWithoutRole() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -129,7 +129,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("jti가 없는 Refresh Token을 전용 오류로 거부한다")
-    void jti가_없는_Refresh_Token을_전용_오류로_거부한다() {
+    void rejectsRefreshTokenWithoutTokenId() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -143,7 +143,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("만료 시각이 없는 Refresh Token을 전용 오류로 거부한다")
-    void 만료_시각이_없는_Refresh_Token을_전용_오류로_거부한다() {
+    void rejectsRefreshTokenWithoutExpiration() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -157,7 +157,7 @@ class JjwtRefreshTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("세션 식별자가 없는 Refresh Token은 회전 검증을 거부한다")
-    void 세션_식별자가_없는_Refresh_Token은_회전_검증을_거부한다() {
+    void rejectsRefreshTokenWithoutSessionIdForRotation() {
         // given
         EncodedToken token = refreshToken(builder -> builder.header().and());
 

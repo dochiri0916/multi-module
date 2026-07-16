@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 
@@ -17,6 +18,7 @@ import java.time.Clock;
 @ConditionalOnClass(Jwts.class)
 @ConditionalOnProperty(prefix = "jwt", name = "secret")
 @EnableConfigurationProperties(JwtVerificationProperties.class)
+@Component
 public class JwtVerifierAutoConfiguration {
 
     @Bean

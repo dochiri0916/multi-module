@@ -1,8 +1,8 @@
 package com.example.member.adapter.in.web;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMessage;
-import com.dochiri.errorhandling.ApiErrorMessageProvider;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMessage;
+import com.dochiri.errorhandling.global.error.ApiErrorMessageProvider;
 import com.example.member.application.exception.MemberApplicationErrorCode;
 import org.springframework.stereotype.Component;
 

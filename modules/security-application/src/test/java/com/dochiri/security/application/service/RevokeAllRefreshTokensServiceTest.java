@@ -14,7 +14,7 @@ class RevokeAllRefreshTokensServiceTest {
 
     @Test
     @DisplayName("인증 주체의 모든 활성 리프레시 토큰을 현재 시각으로 폐기한다")
-    void 인증_주체의_모든_활성_리프레시_토큰을_현재_시각으로_폐기한다() {
+    void revokesAllActiveRefreshTokensAtCurrentTime() {
         // given
         SecurityApplicationTestFixture.RecordingBulkRevocationPort bulkPort =
                 new SecurityApplicationTestFixture.RecordingBulkRevocationPort();

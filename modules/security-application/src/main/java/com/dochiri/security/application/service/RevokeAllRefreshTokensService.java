@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RevokeAllRefreshTokensService implements RevokeAllRefreshTokensUseCase {
+public final class RevokeAllRefreshTokensService implements RevokeAllRefreshTokensUseCase {
 
     private final RefreshSessionBulkRevocationPort refreshSessionBulkRevocationPort;
     private final CurrentTimePort currentTimePort;

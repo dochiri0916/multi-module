@@ -14,7 +14,7 @@ import com.dochiri.security.application.port.out.CurrentTimePort;
 import com.dochiri.security.application.port.out.DecodedRefreshSessionToken;
 import com.dochiri.security.application.port.out.IssuedTokenPair;
 import com.dochiri.security.application.port.out.RefreshSessionTokenVerifierPort;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.application.port.out.RotatingTokenIssuerPort;
 import com.dochiri.security.application.port.out.TokenIdGeneratorPort;
 import com.dochiri.security.domain.exception.RefreshTokenReplayDetectedException;
@@ -28,11 +28,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RotateTokensService implements RotateTokensUseCase {
+public final class RotateTokensService implements RotateTokensUseCase {
 
     private final RotatingTokenIssuerPort tokenIssuerPort;
     private final RefreshSessionTokenVerifierPort refreshTokenVerifierPort;
-    private final RefreshSessionRepositoryPort refreshSessionRepositoryPort;
+    private final RefreshSessionPort refreshSessionRepositoryPort;
     private final TokenIdGeneratorPort tokenIdGeneratorPort;
     private final CurrentTimePort currentTimePort;
 

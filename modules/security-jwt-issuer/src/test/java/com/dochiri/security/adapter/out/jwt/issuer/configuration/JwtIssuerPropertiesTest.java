@@ -15,7 +15,7 @@ class JwtIssuerPropertiesTest {
 
     @Test
     @DisplayName("TTL 설정을 생략하면 기본 Access와 Refresh Token 만료 시간을 적용한다")
-    void TTL_설정을_생략하면_기본_Access와_Refresh_Token_만료_시간을_적용한다() {
+    void appliesDefaultAccessAndRefreshTokenTtlWhenOmitted() {
         // given
         Duration missingAccessTokenTtl = missingValue();
         Duration missingRefreshTokenTtl = missingValue();
@@ -34,7 +34,7 @@ class JwtIssuerPropertiesTest {
 
     @Test
     @DisplayName("Access Token TTL이 zero이면 설정을 거부한다")
-    void Access_Token_TTL이_zero이면_설정을_거부한다() {
+    void rejectsZeroAccessTokenTtl() {
         // given
         Duration accessTokenTtl = Duration.ZERO;
 
@@ -46,7 +46,7 @@ class JwtIssuerPropertiesTest {
 
     @Test
     @DisplayName("Access Token TTL이 음수이면 설정을 거부한다")
-    void Access_Token_TTL이_음수이면_설정을_거부한다() {
+    void rejectsNegativeAccessTokenTtl() {
         // given
         Duration accessTokenTtl = Duration.ofSeconds(-1);
 
@@ -58,7 +58,7 @@ class JwtIssuerPropertiesTest {
 
     @Test
     @DisplayName("Refresh Token TTL이 zero이면 설정을 거부한다")
-    void Refresh_Token_TTL이_zero이면_설정을_거부한다() {
+    void rejectsZeroRefreshTokenTtl() {
         // given
         Duration refreshTokenTtl = Duration.ZERO;
 
@@ -70,7 +70,7 @@ class JwtIssuerPropertiesTest {
 
     @Test
     @DisplayName("Refresh Token TTL이 음수이면 설정을 거부한다")
-    void Refresh_Token_TTL이_음수이면_설정을_거부한다() {
+    void rejectsNegativeRefreshTokenTtl() {
         // given
         Duration refreshTokenTtl = Duration.ofSeconds(-1);
 

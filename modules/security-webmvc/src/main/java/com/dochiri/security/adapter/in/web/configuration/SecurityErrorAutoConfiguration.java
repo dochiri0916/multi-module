@@ -1,6 +1,6 @@
 package com.dochiri.security.adapter.in.web.configuration;
 
-import com.dochiri.errorhandling.ErrorHandlingAutoConfiguration;
+import com.dochiri.errorhandling.global.error.ErrorHandlingAutoConfiguration;
 import com.dochiri.security.adapter.in.web.error.JwtAccessDeniedHandler;
 import com.dochiri.security.adapter.in.web.error.JwtAuthenticationEntryPoint;
 import com.dochiri.security.adapter.in.web.error.SecurityProblemDetailResponseAdapter;

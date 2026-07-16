@@ -13,6 +13,8 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -20,19 +22,16 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 
+@Component
+@RequiredArgsConstructor
 public final class JjwtAccessTokenVerifierAdapter implements AccessTokenVerifierPort {
 
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_CATEGORY = "category";
     private static final String CATEGORY_ACCESS = "access";
 
-    private final SecretKey verificationKey;
+    private final JwtVerificationProperties properties;
     private final Clock clock;
-
-    public JjwtAccessTokenVerifierAdapter(JwtVerificationProperties properties, Clock clock) {
-        this.verificationKey = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
-        this.clock = clock;
-    }
 
     @Override
     public DecodedAccessToken verifyAccess(EncodedToken accessToken) {
@@ -49,7 +48,7 @@ public final class JjwtAccessTokenVerifierAdapter implements AccessTokenVerifier
         try {
             return Jwts.parser()
                     .clock(() -> Date.from(Instant.now(clock)))
-                    .verifyWith(verificationKey)
+                    .verifyWith(verificationKey())
                     .build()
                     .parseSignedClaims(token.value())
                     .getPayload();
@@ -84,10 +83,13 @@ public final class JjwtAccessTokenVerifierAdapter implements AccessTokenVerifier
     }
 
     private TokenExpiration expirationOf(Claims claims) {
-        Date expiration = claims.getExpiration();
-        if (expiration == null) {
+        if (claims.getExpiration() == null) {
             throw InvalidTokenException.missingExpiration();
         }
-        return new TokenExpiration(expiration.toInstant());
+        return new TokenExpiration(claims.getExpiration().toInstant());
+    }
+
+    private SecretKey verificationKey() {
+        return Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 }

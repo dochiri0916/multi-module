@@ -1,10 +1,10 @@
 package com.dochiri.security.adapter.in.web.error;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMapping;
-import com.dochiri.errorhandling.ErrorCodeMappingProvider;
-import com.dochiri.errorhandling.MappedApiError;
-import com.dochiri.errorhandling.ProblemType;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMapping;
+import com.dochiri.errorhandling.global.error.ErrorCodeMappingProvider;
+import com.dochiri.errorhandling.global.error.MappedApiError;
+import com.dochiri.errorhandling.global.error.ProblemType;
 import com.dochiri.security.application.exception.InvalidRefreshSessionCleanupBatchSizeException;
 import com.dochiri.security.application.exception.InvalidRefreshSessionCleanupCountException;
 import com.dochiri.security.application.exception.InvalidRefreshTokenRevocationCountException;

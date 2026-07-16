@@ -30,7 +30,7 @@ class IssueTokensServiceTest {
 
     @Test
     @DisplayName("토큰 쌍을 발급하고 role 스냅샷을 가진 리프레시 세션 Aggregate를 저장한다")
-    void 토큰_쌍을_발급하고_role_스냅샷을_가진_리프레시_세션_Aggregate를_저장한다() {
+    void issuesTokenPairAndStoresRefreshSessionRoleSnapshot() {
         // given
         SecurityApplicationTestFixture.FixedTokenIssuer issuer =
                 new SecurityApplicationTestFixture.FixedTokenIssuer();
@@ -57,7 +57,7 @@ class IssueTokensServiceTest {
 
     @Test
     @DisplayName("codec이 요청한 식별자와 다른 리프레시 토큰을 발급하면 저장하지 않고 거부한다")
-    void codec이_요청한_식별자와_다른_리프레시_토큰을_발급하면_저장하지_않고_거부한다() {
+    void rejectsTokenCodecReturningDifferentRefreshTokenId() {
         // given
         SecurityApplicationTestFixture.InMemoryRefreshSessionRepository repository =
                 new SecurityApplicationTestFixture.InMemoryRefreshSessionRepository();

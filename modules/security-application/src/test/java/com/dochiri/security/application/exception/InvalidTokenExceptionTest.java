@@ -11,7 +11,7 @@ class InvalidTokenExceptionTest {
 
     @Test
     @DisplayName("토큰 검증 실패 정적 팩토리는 원인별 Application 오류 코드를 보존한다")
-    void 토큰_검증_실패_정적_팩토리는_원인별_Application_오류_코드를_보존한다() {
+    void preservesErrorCodeForEachInvalidTokenReason() {
         // given
         List<SecurityApplicationErrorCode> expectedCodes = List.of(
                 SecurityApplicationErrorCode.TOKEN_EXPIRED,

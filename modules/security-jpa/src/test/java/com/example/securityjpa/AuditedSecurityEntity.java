@@ -1,6 +1,6 @@
 package com.example.securityjpa;
 
-import com.dochiri.jpa.entity.BaseEntity;
+import com.dochiri.jpa.adapter.in.bootstrap.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,9 +22,11 @@ class AuditedSecurityEntity extends BaseEntity {
     private String name;
 
     protected AuditedSecurityEntity() {
+        super();
     }
 
     AuditedSecurityEntity(String name) {
+        super();
         this.name = name;
     }
 

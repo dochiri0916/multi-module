@@ -1,7 +1,7 @@
 package com.dochiri.security.adapter.in.web.error;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.MappedApiError;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.MappedApiError;
 import com.dochiri.security.application.exception.InvalidRefreshSessionCleanupBatchSizeException;
 import com.dochiri.security.application.exception.InvalidRefreshSessionCleanupCountException;
 import com.dochiri.security.application.exception.InvalidRefreshTokenRevocationCountException;
@@ -40,7 +40,7 @@ class SecurityErrorCodeMappingProviderTest {
 
     @Test
     @DisplayName("모든 security와 refresh token 예외를 namespace API 오류로 해석한다")
-    void 모든_security와_refresh_token_예외를_namespace_API_오류로_해석한다() {
+    void resolvesSecurityAndRefreshTokenExceptionsToNamespacedErrors() {
         // given
         Map<RuntimeException, ApiErrorCode> expectations = new LinkedHashMap<>();
         expectations.put(
@@ -51,7 +51,10 @@ class SecurityErrorCodeMappingProviderTest {
                 new AccessDeniedException("internal"),
                 ApiErrorCode.from(SecurityErrorCode.ACCESS_DENIED)
         );
-        expectations.put(InvalidTokenException.malformed(), ApiErrorCode.from(InvalidTokenException.malformed().code()));
+        expectations.put(
+                InvalidTokenException.malformed(),
+                ApiErrorCode.from(InvalidTokenException.malformed().code())
+        );
         expectations.put(
                 RefreshTokenNotFoundException.tokenNotFound(TOKEN_ID),
                 ApiErrorCode.from(RefreshTokenNotFoundException.tokenNotFound(TOKEN_ID).code())
@@ -116,7 +119,7 @@ class SecurityErrorCodeMappingProviderTest {
 
     @Test
     @DisplayName("알 수 없는 예외는 security 오류로 임의 변환하지 않는다")
-    void 알_수_없는_예외는_security_오류로_임의_변환하지_않는다() {
+    void leavesUnknownExceptionUnresolved() {
         // given
         RuntimeException exception = new IllegalStateException("internal");
 
@@ -129,7 +132,7 @@ class SecurityErrorCodeMappingProviderTest {
 
     @Test
     @DisplayName("codec과 저장소 adapter 계약 오류는 내부 서버 오류로 매핑한다")
-    void codec과_저장소_adapter_계약_오류는_내부_서버_오류로_매핑한다() {
+    void mapsAdapterContractFailuresToInternalServerError() {
         // given
         RuntimeException[] failures = {
                 TokenCodecContractException.unexpectedTokenId(TOKEN_ID),

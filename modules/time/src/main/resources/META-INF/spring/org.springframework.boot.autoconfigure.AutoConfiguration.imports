@@ -1,1 +1,1 @@
-com.dochiri.time.configuration.TimeAutoConfiguration
+com.dochiri.time.adapter.in.bootstrap.TimeAutoConfiguration

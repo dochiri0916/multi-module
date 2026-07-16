@@ -7,7 +7,7 @@ import com.dochiri.security.application.port.in.RevokeRefreshTokenUseCase;
 import com.dochiri.security.application.port.out.CurrentTimePort;
 import com.dochiri.security.application.port.out.DecodedRefreshToken;
 import com.dochiri.security.application.port.out.RefreshTokenVerifierPort;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.domain.model.RefreshSession;
 import com.dochiri.security.domain.model.RevokedAt;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +18,10 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class RevokeRefreshTokenService implements RevokeRefreshTokenUseCase {
+public final class RevokeRefreshTokenService implements RevokeRefreshTokenUseCase {
 
     private final RefreshTokenVerifierPort refreshTokenVerifierPort;
-    private final RefreshSessionRepositoryPort refreshSessionRepositoryPort;
+    private final RefreshSessionPort refreshSessionRepositoryPort;
     private final CurrentTimePort currentTimePort;
 
     @Override
@@ -38,7 +38,7 @@ public class RevokeRefreshTokenService implements RevokeRefreshTokenUseCase {
         if (!session.subject().equals(decodedToken.subject())) {
             throw RefreshTokenSubjectMismatchException.subjectMismatch(session.currentTokenId());
         }
-        if (session.isRevoked()) {
+        if (session.status().isRevoked()) {
             return new RevokeRefreshTokenResult(false);
         }
 

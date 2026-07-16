@@ -26,7 +26,7 @@ class JwtIssuerAutoConfigurationTest {
 
     @Test
     @DisplayName("인증 서버용 JWT 구성은 발급과 Refresh Token Port만 제공한다")
-    void 인증_서버용_JWT_구성은_발급과_Refresh_Token_Port만_제공한다() {
+    void providesIssuanceAndRefreshTokenPortsForAuthServer() {
         // given
         ApplicationContextRunner runner = contextRunner;
 
@@ -44,7 +44,7 @@ class JwtIssuerAutoConfigurationTest {
 
     @Test
     @DisplayName("소비자가 제공한 인증 서버 Port가 있으면 기본 Bean이 물러난다")
-    void 소비자가_제공한_인증_서버_Port가_있으면_기본_Bean이_물러난다() {
+    void backsOffWhenConsumerProvidesAuthServerPorts() {
         // given
         RotatingTokenIssuerPort issuer = org.mockito.Mockito.mock(RotatingTokenIssuerPort.class);
         RefreshSessionTokenVerifierPort verifier =
@@ -68,7 +68,7 @@ class JwtIssuerAutoConfigurationTest {
 
     @Test
     @DisplayName("JWT secret이 없으면 인증 서버 JWT 기능만 비활성화한다")
-    void JWT_secret이_없으면_인증_서버_JWT_기능만_비활성화한다() {
+    void disablesAuthServerJwtFeaturesWhenSecretIsMissing() {
         // given
         ApplicationContextRunner runner = new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(JwtIssuerAutoConfiguration.class));
@@ -83,7 +83,7 @@ class JwtIssuerAutoConfigurationTest {
 
     @Test
     @DisplayName("소비자가 제공한 Clock으로 현재 시각을 만들고 UUID Token 식별자를 생성한다")
-    void 소비자가_제공한_Clock으로_현재_시각을_만들고_UUID_Token_식별자를_생성한다() {
+    void usesConsumerClockAndGeneratesUuidTokenIdentifier() {
         // given
         Instant fixedInstant = Instant.parse("2030-01-01T00:00:00Z");
         Clock clock = Clock.fixed(fixedInstant, ZoneOffset.UTC);

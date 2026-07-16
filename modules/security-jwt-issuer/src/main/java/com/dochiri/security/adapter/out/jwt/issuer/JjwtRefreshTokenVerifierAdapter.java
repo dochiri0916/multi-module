@@ -16,6 +16,8 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +25,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 
+@Component
+@RequiredArgsConstructor
 public final class JjwtRefreshTokenVerifierAdapter implements RefreshSessionTokenVerifierPort {
 
     private static final String CLAIM_ROLE = "role";
@@ -30,13 +34,8 @@ public final class JjwtRefreshTokenVerifierAdapter implements RefreshSessionToke
     private static final String CLAIM_SESSION_ID = "sid";
     private static final String CATEGORY_REFRESH = "refresh";
 
-    private final SecretKey verificationKey;
+    private final JwtIssuerProperties properties;
     private final Clock clock;
-
-    public JjwtRefreshTokenVerifierAdapter(JwtIssuerProperties properties, Clock clock) {
-        this.verificationKey = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
-        this.clock = clock;
-    }
 
     @Override
     public DecodedRefreshToken verifyRefresh(EncodedToken refreshToken) {
@@ -67,7 +66,7 @@ public final class JjwtRefreshTokenVerifierAdapter implements RefreshSessionToke
         try {
             return Jwts.parser()
                     .clock(() -> Date.from(Instant.now(clock)))
-                    .verifyWith(verificationKey)
+                    .verifyWith(verificationKey())
                     .build()
                     .parseSignedClaims(token.value())
                     .getPayload();
@@ -118,10 +117,13 @@ public final class JjwtRefreshTokenVerifierAdapter implements RefreshSessionToke
     }
 
     private TokenExpiration expirationOf(Claims claims) {
-        Date expiration = claims.getExpiration();
-        if (expiration == null) {
+        if (claims.getExpiration() == null) {
             throw InvalidTokenException.missingExpiration();
         }
-        return new TokenExpiration(expiration.toInstant());
+        return new TokenExpiration(claims.getExpiration().toInstant());
+    }
+
+    private SecretKey verificationKey() {
+        return Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 }

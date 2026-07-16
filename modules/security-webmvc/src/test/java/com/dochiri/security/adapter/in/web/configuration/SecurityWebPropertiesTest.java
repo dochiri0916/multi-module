@@ -12,11 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityWebPropertiesTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(TestConfiguration.class));
+            .withConfiguration(AutoConfigurations.of(SecurityWebPropertiesConfiguration.class));
 
     @Test
     @DisplayName("Swagger 공개는 기본적으로 비활성화한다")
-    void Swagger_공개는_기본적으로_비활성화한다() {
+    void disablesSwaggerPublicAccessByDefault() {
         // given
         ApplicationContextRunner runner = contextRunner;
 
@@ -26,7 +26,7 @@ class SecurityWebPropertiesTest {
 
     @Test
     @DisplayName("명시적 설정이 있을 때만 Swagger 공개를 활성화한다")
-    void 명시적_설정이_있을_때만_Swagger_공개를_활성화한다() {
+    void enablesSwaggerPublicAccessOnlyWhenConfigured() {
         // given
         ApplicationContextRunner runner = contextRunner.withPropertyValues("security.swagger-public=true");
 
@@ -36,6 +36,6 @@ class SecurityWebPropertiesTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties(SecurityWebProperties.class)
-    static class TestConfiguration {
+    static class SecurityWebPropertiesConfiguration {
     }
 }

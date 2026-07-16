@@ -12,13 +12,15 @@ import java.util.Optional;
 
 interface RefreshSessionJpaRepository extends JpaRepository<RefreshSessionEntity, Long> {
 
-    Optional<RefreshSessionEntity> findBySessionId(String sessionId);
+    Optional<RefreshSessionEntity> findByRefreshSessionId(String refreshSessionId);
 
     Optional<RefreshSessionEntity> findByCurrentTokenId(String currentTokenId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select session from RefreshSessionEntity session where session.sessionId = :sessionId")
-    Optional<RefreshSessionEntity> findBySessionIdForUpdate(@Param("sessionId") String sessionId);
+    @Query("select session from RefreshSessionEntity session where session.refreshSessionId = :refreshSessionId")
+    Optional<RefreshSessionEntity> findByRefreshSessionIdForUpdate(
+            @Param("refreshSessionId") String refreshSessionId
+    );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

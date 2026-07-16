@@ -21,7 +21,7 @@ class SecurityAuditAutoConfigurationTest {
 
     @Test
     @DisplayName("AuditorAware가 없으면 보안 컨텍스트 기반 감사자를 등록한다")
-    void AuditorAware가_없으면_보안_컨텍스트_기반_감사자를_등록한다() {
+    void registersSecurityContextAuditorWhenNoAuditorExists() {
         // given
         String expectedSystemAuditor = "system-99";
 
@@ -37,7 +37,7 @@ class SecurityAuditAutoConfigurationTest {
 
     @Test
     @DisplayName("사용자 정의 AuditorAware가 있으면 기본 감사자를 등록하지 않는다")
-    void 사용자_정의_AuditorAware가_있으면_기본_감사자를_등록하지_않는다() {
+    void backsOffWhenCustomAuditorExists() {
         // given
         String expectedAuditor = "custom-auditor";
 

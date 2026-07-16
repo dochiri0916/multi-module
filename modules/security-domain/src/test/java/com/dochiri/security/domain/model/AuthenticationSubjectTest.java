@@ -14,7 +14,7 @@ class AuthenticationSubjectTest {
 
     @Test
     @DisplayName("인증 주체의 앞뒤 공백을 제거한다")
-    void 인증_주체의_앞뒤_공백을_제거한다() {
+    void trimsSurroundingAuthenticationSubjectWhitespace() {
         // given
         String value = "  member-01  ";
 
@@ -27,7 +27,7 @@ class AuthenticationSubjectTest {
 
     @Test
     @DisplayName("인증 주체가 null이면 전용 오류 코드로 거부한다")
-    void 인증_주체가_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullAuthenticationSubjectWithDedicatedErrorCode() {
         // given
         String value = missingValue();
 
@@ -40,7 +40,7 @@ class AuthenticationSubjectTest {
 
     @Test
     @DisplayName("인증 주체가 blank이면 전용 오류 코드로 거부한다")
-    void 인증_주체가_blank이면_전용_오류_코드로_거부한다() {
+    void rejectsBlankAuthenticationSubjectWithDedicatedErrorCode() {
         // given
         String value = "   ";
 

@@ -20,7 +20,7 @@ class RefreshSessionMapperTest {
 
     @Test
     @DisplayName("JPA Entity와 순수 RefreshSession Aggregate를 손실 없이 변환한다")
-    void JPA_Entity와_순수_RefreshSession_Aggregate를_손실_없이_변환한다() {
+    void mapsJpaEntityAndRefreshSessionWithoutDataLoss() {
         // given
         RefreshSession domain = RefreshSession.issue(
                 new RefreshSessionId("session-id"),
@@ -46,7 +46,7 @@ class RefreshSessionMapperTest {
 
     @Test
     @DisplayName("RefreshSessionEntity는 DB 기술 식별자와 version getter를 공개하지 않는다")
-    void RefreshSessionEntity는_DB_기술_식별자와_version_getter를_공개하지_않는다() {
+    void hidesTechnicalIdentifierAndVersionGetters() {
         // given
         Method[] publicMethods = RefreshSessionEntity.class.getMethods();
 

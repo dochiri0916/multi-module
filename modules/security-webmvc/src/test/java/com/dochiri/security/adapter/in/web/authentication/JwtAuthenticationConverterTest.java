@@ -18,7 +18,7 @@ class JwtAuthenticationConverterTest {
 
     @Test
     @DisplayName("검증된 access token을 문자열 subject의 인증 principal로 변환한다")
-    void 검증된_access_token을_문자열_subject의_인증_principal로_변환한다() {
+    void convertsVerifiedAccessTokenToStringSubjectPrincipal() {
         // given
         AuthenticationSubject subject = new AuthenticationSubject("member-string-id");
         AuthenticationRole role = new AuthenticationRole("MEMBER");

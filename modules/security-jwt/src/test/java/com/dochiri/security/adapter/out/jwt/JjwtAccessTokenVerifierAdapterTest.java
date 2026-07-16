@@ -44,7 +44,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("유효한 Access Token에서 인증 주체와 역할과 만료 시각을 검증한다")
-    void 유효한_Access_Token에서_인증_주체와_역할과_만료_시각을_검증한다() {
+    void verifiesSubjectRoleAndExpirationFromValidAccessToken() {
         // given
         EncodedToken token = accessToken();
 
@@ -59,7 +59,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("Refresh Token을 Access Token으로 검증하면 category 오류로 거부한다")
-    void Refresh_Token을_Access_Token으로_검증하면_category_오류로_거부한다() {
+    void rejectsRefreshTokenCategory() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -75,7 +75,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("형식이 잘못된 Token을 Application 오류로 변환한다")
-    void 형식이_잘못된_Token을_Application_오류로_변환한다() {
+    void mapsMalformedTokenToApplicationError() {
         // given
         EncodedToken malformed = new EncodedToken("not-a-jwt");
 
@@ -87,7 +87,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("만료된 Access Token을 전용 오류로 거부한다")
-    void 만료된_Access_Token을_전용_오류로_거부한다() {
+    void rejectsExpiredAccessToken() {
         // given
         EncodedToken expired = accessToken(builder ->
                 builder.expiration(Date.from(Instant.parse("2020-01-01T00:00:00Z"))));
@@ -100,7 +100,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("subject가 없는 Access Token을 전용 오류로 거부한다")
-    void subject가_없는_Access_Token을_전용_오류로_거부한다() {
+    void rejectsAccessTokenWithoutSubject() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .claim(ROLE_CLAIM, ROLE.value())
@@ -115,7 +115,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("role이 없는 Access Token을 전용 오류로 거부한다")
-    void role이_없는_Access_Token을_전용_오류로_거부한다() {
+    void rejectsAccessTokenWithoutRole() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -130,7 +130,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("만료 시각이 없는 Access Token을 전용 오류로 거부한다")
-    void 만료_시각이_없는_Access_Token을_전용_오류로_거부한다() {
+    void rejectsAccessTokenWithoutExpiration() {
         // given
         EncodedToken token = signedToken(builder -> builder
                 .subject(SUBJECT.value())
@@ -146,7 +146,7 @@ class JjwtAccessTokenVerifierAdapterTest {
 
     @Test
     @DisplayName("JJWT 타입을 공개 메서드 계약에 노출하지 않는다")
-    void JJWT_타입을_공개_메서드_계약에_노출하지_않는다() {
+    void hidesJjwtTypesFromPublicMethodContract() {
         // given
         Method[] publicMethods = JjwtAccessTokenVerifierAdapter.class.getMethods();
 

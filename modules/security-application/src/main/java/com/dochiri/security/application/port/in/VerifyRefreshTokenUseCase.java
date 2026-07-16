@@ -3,5 +3,5 @@ package com.dochiri.security.application.port.in;
 @FunctionalInterface
 public interface VerifyRefreshTokenUseCase {
 
-    VerifyRefreshTokenResult execute(VerifyRefreshTokenCommand command);
+    VerifyRefreshTokenResult execute(VerifyRefreshTokenQuery query);
 }

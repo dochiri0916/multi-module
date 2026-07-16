@@ -1,15 +1,20 @@
 package com.dochiri.security.application.service;
 
+import com.dochiri.security.application.exception.RefreshSessionInactiveException;
 import com.dochiri.security.application.exception.RefreshSessionNotFoundException;
+import com.dochiri.security.application.exception.RefreshTokenExpirationMismatchException;
+import com.dochiri.security.application.exception.RefreshTokenRoleMismatchException;
 import com.dochiri.security.application.exception.RefreshTokenReplayException;
+import com.dochiri.security.application.exception.RefreshTokenSubjectMismatchException;
 import com.dochiri.security.application.exception.SecurityApplicationErrorCode;
+import com.dochiri.security.application.exception.TokenCodecContractException;
 import com.dochiri.security.application.port.in.RotateTokensCommand;
 import com.dochiri.security.application.port.in.RotateTokensResult;
 import com.dochiri.security.application.port.out.DecodedRefreshToken;
 import com.dochiri.security.application.port.out.DecodedRefreshSessionToken;
 import com.dochiri.security.application.port.out.IssuedTokenPair;
 import com.dochiri.security.application.port.out.RefreshSessionTokenVerifierPort;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.application.port.out.RotatingTokenIssuerPort;
 import com.dochiri.security.domain.model.AuthenticationRole;
 import com.dochiri.security.domain.model.AuthenticationSubject;
@@ -18,6 +23,7 @@ import com.dochiri.security.domain.model.EncodedToken;
 import com.dochiri.security.domain.model.RefreshSession;
 import com.dochiri.security.domain.model.RefreshSessionId;
 import com.dochiri.security.domain.model.RevokedAt;
+import com.dochiri.security.domain.model.RefreshSessionStatus;
 import com.dochiri.security.domain.model.TokenExpiration;
 import com.dochiri.security.domain.model.TokenId;
 import org.junit.jupiter.api.DisplayName;
@@ -45,7 +51,7 @@ class RotateTokensServiceTest {
 
     @Test
     @DisplayName("활성 리프레시 세션을 rotation하면 같은 세션에 새 token 식별자를 저장한다")
-    void 활성_리프레시_세션을_rotation하면_같은_세션에_새_token_식별자를_저장한다() {
+    void rotatesActiveRefreshSessionAndStoresReplacementTokenId() {
         // given
         RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
         InMemoryRefreshSessionRepository repository = repositoryWith(issueSession());
@@ -66,7 +72,7 @@ class RotateTokensServiceTest {
 
     @Test
     @DisplayName("저장된 리프레시 세션이 없으면 session 식별자를 보존한 예외를 던진다")
-    void 저장된_리프레시_세션이_없으면_session_식별자를_보존한_예외를_던진다() {
+    void preservesSessionIdWhenRefreshSessionIsMissing() {
         // given
         RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
         InMemoryRefreshSessionRepository repository = new InMemoryRefreshSessionRepository();
@@ -81,8 +87,115 @@ class RotateTokensServiceTest {
     }
 
     @Test
+    @DisplayName("폐기된 리프레시 세션은 상태와 세션 식별자를 보존한 예외로 거부한다")
+    void rejectsInactiveRefreshSessionWithStatusAndSessionId() {
+        // given
+        RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
+        RefreshSession revokedSession = issueSession().revoke(new RevokedAt(NOW.value()));
+        RotateTokensService service = service(codec, repositoryWith(revokedSession));
+
+        // when & then
+        assertThatThrownBy(() -> service.execute(new RotateTokensCommand(PRESENTED_REFRESH_TOKEN)))
+                .isInstanceOfSatisfying(RefreshSessionInactiveException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(SecurityApplicationErrorCode.REFRESH_SESSION_INACTIVE);
+                    assertThat(exception.sessionId()).isEqualTo(SESSION_ID);
+                    assertThat(exception.status()).isEqualTo(RefreshSessionStatus.REVOKED);
+                });
+    }
+
+    @Test
+    @DisplayName("JWT subject가 세션 subject와 다르면 토큰 식별자를 보존한 예외로 거부한다")
+    void rejectsSubjectMismatchWithTokenId() {
+        // given
+        RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
+        codec.decodedSessionToken(new DecodedRefreshSessionToken(
+                SESSION_ID,
+                new AuthenticationSubject("other-member"),
+                ROLE,
+                CURRENT_TOKEN_ID,
+                EXPIRATION
+        ));
+        RotateTokensService service = service(codec, repositoryWith(issueSession()));
+
+        // when & then
+        assertThatThrownBy(() -> service.execute(new RotateTokensCommand(PRESENTED_REFRESH_TOKEN)))
+                .isInstanceOfSatisfying(RefreshTokenSubjectMismatchException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(SecurityApplicationErrorCode.REFRESH_TOKEN_SUBJECT_MISMATCH);
+                    assertThat(exception.tokenId()).isEqualTo(CURRENT_TOKEN_ID);
+                });
+    }
+
+    @Test
+    @DisplayName("JWT role이 세션 role과 다르면 세션 식별자를 보존한 예외로 거부한다")
+    void rejectsRoleMismatchWithSessionId() {
+        // given
+        RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
+        codec.decodedSessionToken(new DecodedRefreshSessionToken(
+                SESSION_ID,
+                SUBJECT,
+                new AuthenticationRole("ADMIN"),
+                CURRENT_TOKEN_ID,
+                EXPIRATION
+        ));
+        RotateTokensService service = service(codec, repositoryWith(issueSession()));
+
+        // when & then
+        assertThatThrownBy(() -> service.execute(new RotateTokensCommand(PRESENTED_REFRESH_TOKEN)))
+                .isInstanceOfSatisfying(RefreshTokenRoleMismatchException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(SecurityApplicationErrorCode.REFRESH_TOKEN_ROLE_MISMATCH);
+                    assertThat(exception.sessionId()).isEqualTo(SESSION_ID);
+                });
+    }
+
+    @Test
+    @DisplayName("JWT 만료 시각이 세션 만료 시각과 다르면 토큰 식별자를 보존한 예외로 거부한다")
+    void rejectsExpirationMismatchWithTokenId() {
+        // given
+        RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
+        codec.decodedSessionToken(new DecodedRefreshSessionToken(
+                SESSION_ID,
+                SUBJECT,
+                ROLE,
+                CURRENT_TOKEN_ID,
+                new TokenExpiration(EXPIRATION.value().plusSeconds(1))
+        ));
+        RotateTokensService service = service(codec, repositoryWith(issueSession()));
+
+        // when & then
+        assertThatThrownBy(() -> service.execute(new RotateTokensCommand(PRESENTED_REFRESH_TOKEN)))
+                .isInstanceOfSatisfying(RefreshTokenExpirationMismatchException.class, exception -> {
+                    assertThat(exception.code())
+                            .isEqualTo(SecurityApplicationErrorCode.REFRESH_TOKEN_EXPIRATION_MISMATCH);
+                    assertThat(exception.tokenId()).isEqualTo(CURRENT_TOKEN_ID);
+                });
+    }
+
+    @Test
+    @DisplayName("Token issuer가 다른 리프레시 토큰 식별자를 반환하면 계약 위반으로 거부한다")
+    void rejectsUnexpectedRotatedRefreshTokenId() {
+        // given
+        RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
+        codec.issuedTokenPair(new IssuedTokenPair(
+                ROTATED_ACCESS_TOKEN,
+                ROTATED_REFRESH_TOKEN,
+                new TokenId("unexpected-token-id"),
+                EXPIRATION
+        ));
+        InMemoryRefreshSessionRepository repository = repositoryWith(issueSession());
+        RotateTokensService service = service(codec, repository);
+
+        // when & then
+        assertThatThrownBy(() -> service.execute(new RotateTokensCommand(PRESENTED_REFRESH_TOKEN)))
+                .isInstanceOfSatisfying(TokenCodecContractException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo(SecurityApplicationErrorCode.TOKEN_CODEC_CONTRACT_VIOLATION);
+                    assertThat(exception.tokenId()).isEqualTo(ROTATED_TOKEN_ID);
+                });
+        assertThat(repository.savedSession()).isNull();
+    }
+
+    @Test
     @DisplayName("이전 리프레시 token이 재사용되면 현재 세션을 폐기하고 재사용 예외를 던진다")
-    void 이전_리프레시_token이_재사용되면_현재_세션을_폐기하고_재사용_예외를_던진다() {
+    void revokesSessionWhenPreviousRefreshTokenIsReplayed() {
         // given
         RecordingRotatingTokenCodec codec = new RecordingRotatingTokenCodec();
         RefreshSession rotatedSession = issueSession().rotate(CURRENT_TOKEN_ID, ROTATED_TOKEN_ID, NOW);
@@ -96,7 +209,7 @@ class RotateTokensServiceTest {
                     assertThat(exception.sessionId()).isEqualTo(SESSION_ID);
                     assertThat(exception.replayedTokenId()).isEqualTo(CURRENT_TOKEN_ID);
                 });
-        assertThat(repository.savedSession().isRevoked()).isTrue();
+        assertThat(repository.savedSession().status().isRevoked()).isTrue();
         assertThat(repository.savedSession().revokedAt()).isEqualTo(new RevokedAt(NOW.value()));
     }
 
@@ -117,45 +230,53 @@ class RotateTokensServiceTest {
         return RefreshSession.issue(SESSION_ID, CURRENT_TOKEN_ID, SUBJECT, ROLE, EXPIRATION);
     }
 
-    private static final class InMemoryRefreshSessionRepository implements RefreshSessionRepositoryPort {
+    private static final class InMemoryRefreshSessionRepository implements RefreshSessionPort {
 
-        private RefreshSession storedSession;
-        private RefreshSession savedSession;
+        private RefreshSession storedSessionState;
+        private RefreshSession savedSessionState;
 
         @Override
         public RefreshSession save(RefreshSession refreshSession) {
-            storedSession = refreshSession;
-            savedSession = refreshSession;
+            storedSessionState = refreshSession;
+            savedSessionState = refreshSession;
             return refreshSession;
         }
 
         @Override
         public Optional<RefreshSession> findBySessionIdForUpdate(RefreshSessionId sessionId) {
-            return Optional.ofNullable(storedSession);
+            return Optional.ofNullable(storedSessionState);
         }
 
         @Override
         public Optional<RefreshSession> findByCurrentTokenId(TokenId tokenId) {
-            if (storedSession == null || !storedSession.currentTokenId().equals(tokenId)) {
+            if (storedSessionState == null || !storedSessionState.currentTokenId().equals(tokenId)) {
                 return Optional.empty();
             }
-            return Optional.of(storedSession);
+            return Optional.of(storedSessionState);
         }
 
         void storedSession(RefreshSession value) {
-            storedSession = value;
+            storedSessionState = value;
         }
 
         RefreshSession savedSession() {
-            return savedSession;
+            return savedSessionState;
         }
     }
 
     private static final class RecordingRotatingTokenCodec
             implements RotatingTokenIssuerPort, RefreshSessionTokenVerifierPort {
 
-        private RefreshSessionId rotatedSessionId;
-        private AuthenticationRole rotatedRole;
+        private RefreshSessionId lastRotatedSessionId;
+        private AuthenticationRole lastRotatedRole;
+        private DecodedRefreshSessionToken decodedSessionTokenValue = new DecodedRefreshSessionToken(
+                SESSION_ID,
+                SUBJECT,
+                ROLE,
+                CURRENT_TOKEN_ID,
+                EXPIRATION
+        );
+        private IssuedTokenPair configuredTokenPair;
 
         @Override
         public IssuedTokenPair issue(
@@ -176,20 +297,14 @@ class RotateTokensServiceTest {
                 TokenExpiration refreshTokenExpiresAt,
                 CurrentTime issuedAt
         ) {
-            rotatedSessionId = sessionId;
-            rotatedRole = role;
-            return rotatedPair();
+            lastRotatedSessionId = sessionId;
+            lastRotatedRole = role;
+            return configuredTokenPair == null ? rotatedPair() : configuredTokenPair;
         }
 
         @Override
         public DecodedRefreshSessionToken verifyRefreshSession(EncodedToken refreshToken) {
-            return new DecodedRefreshSessionToken(
-                    SESSION_ID,
-                    SUBJECT,
-                    ROLE,
-                    CURRENT_TOKEN_ID,
-                    EXPIRATION
-            );
+            return decodedSessionTokenValue;
         }
 
         @Override
@@ -203,11 +318,19 @@ class RotateTokensServiceTest {
         }
 
         RefreshSessionId rotatedSessionId() {
-            return rotatedSessionId;
+            return lastRotatedSessionId;
         }
 
         AuthenticationRole rotatedRole() {
-            return rotatedRole;
+            return lastRotatedRole;
+        }
+
+        void decodedSessionToken(DecodedRefreshSessionToken value) {
+            decodedSessionTokenValue = value;
+        }
+
+        void issuedTokenPair(IssuedTokenPair value) {
+            configuredTokenPair = value;
         }
 
         private IssuedTokenPair rotatedPair() {

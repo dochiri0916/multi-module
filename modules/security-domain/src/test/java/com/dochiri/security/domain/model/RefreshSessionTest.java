@@ -33,7 +33,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("리프레시 세션을 발급하면 활성 상태와 role 스냅샷을 보관한다")
-    void 리프레시_세션을_발급하면_활성_상태와_role_스냅샷을_보관한다() {
+    void issuesActiveSessionWithRoleSnapshot() {
         // given
         RefreshSessionStatus expectedStatus = RefreshSessionStatus.ACTIVE;
 
@@ -52,7 +52,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("세션 식별자가 없으면 리프레시 세션을 발급할 수 없다")
-    void 세션_식별자가_없으면_리프레시_세션을_발급할_수_없다() {
+    void rejectsMissingSessionIdentifierWhenIssuing() {
         // given
         RefreshSessionId missingSessionId = missingValue();
 
@@ -66,7 +66,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("현재 token 식별자가 없으면 리프레시 세션을 발급할 수 없다")
-    void 현재_token_식별자가_없으면_리프레시_세션을_발급할_수_없다() {
+    void rejectsMissingCurrentTokenIdentifierWhenIssuing() {
         // given
         TokenId missingTokenId = missingValue();
 
@@ -79,7 +79,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("인증 주체가 없으면 리프레시 세션을 발급할 수 없다")
-    void 인증_주체가_없으면_리프레시_세션을_발급할_수_없다() {
+    void rejectsMissingAuthenticationSubjectWhenIssuing() {
         // given
         AuthenticationSubject missingSubject = missingValue();
 
@@ -93,7 +93,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("인증 role이 없으면 리프레시 세션을 발급할 수 없다")
-    void 인증_role이_없으면_리프레시_세션을_발급할_수_없다() {
+    void rejectsMissingAuthenticationRoleWhenIssuing() {
         // given
         AuthenticationRole missingRole = missingValue();
 
@@ -107,7 +107,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("만료 시각이 없으면 리프레시 세션을 발급할 수 없다")
-    void 만료_시각이_없으면_리프레시_세션을_발급할_수_없다() {
+    void rejectsMissingExpirationWhenIssuing() {
         // given
         TokenExpiration missingExpiration = missingValue();
 
@@ -120,7 +120,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("상태가 없으면 리프레시 세션을 복원할 수 없다")
-    void 상태가_없으면_리프레시_세션을_복원할_수_없다() {
+    void rejectsMissingStatusWhenReconstituting() {
         // given
         RefreshSessionStatus missingStatus = missingValue();
 
@@ -140,7 +140,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("현재 token 식별자로 rotation하면 같은 세션의 token만 교체한다")
-    void 현재_token_식별자로_rotation하면_같은_세션의_token만_교체한다() {
+    void rotatesCurrentTokenIdentifierWithinSameSession() {
         // given
         RefreshSession session = issueSession();
 
@@ -158,7 +158,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("현재 token이 아닌 식별자로 rotation하면 재사용 탐지 예외를 던진다")
-    void 현재_token이_아닌_식별자로_rotation하면_재사용_탐지_예외를_던진다() {
+    void detectsReplayedTokenIdentifierDuringRotation() {
         // given
         RefreshSession session = issueSession().rotate(TOKEN_ID, ROTATED_TOKEN_ID, ACTIVE_TIME);
         TokenId replayedTokenId = TOKEN_ID;
@@ -177,7 +177,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("같은 token 식별자로 rotation하면 새 token 요구 오류로 거부한다")
-    void 같은_token_식별자로_rotation하면_새_token_요구_오류로_거부한다() {
+    void rejectsUnchangedTokenIdentifierDuringRotation() {
         // given
         RefreshSession session = issueSession();
 
@@ -192,7 +192,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("rotation의 현재 token과 교체 token 식별자는 모두 필수다")
-    void rotation의_현재_token과_교체_token_식별자는_모두_필수다() {
+    void requiresBothTokenIdentifiersDuringRotation() {
         // given
         RefreshSession session = issueSession();
 
@@ -213,7 +213,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("rotation 기준 시각이 없으면 리프레시 세션을 변경할 수 없다")
-    void rotation_기준_시각이_없으면_리프레시_세션을_변경할_수_없다() {
+    void rejectsRotationWithoutCurrentTime() {
         // given
         RefreshSession session = issueSession();
 
@@ -228,7 +228,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("폐기된 세션은 rotation할 수 없다")
-    void 폐기된_세션은_rotation할_수_없다() {
+    void rejectsRotationForRevokedSession() {
         // given
         RevokedAt revokedAt = new RevokedAt(Instant.parse("2028-12-31T00:00:00Z"));
         RefreshSession session = issueSession().revoke(revokedAt);
@@ -246,7 +246,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("만료 경계에 도달한 세션은 rotation할 수 없다")
-    void 만료_경계에_도달한_세션은_rotation할_수_없다() {
+    void rejectsRotationAtExpirationBoundary() {
         // given
         RefreshSession session = issueSession();
         CurrentTime expirationBoundary = new CurrentTime(EXPIRATION.value());
@@ -264,7 +264,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("활성 세션을 폐기하면 새 폐기 상태를 반환한다")
-    void 활성_세션을_폐기하면_새_폐기_상태를_반환한다() {
+    void returnsNewRevokedSessionWhenActiveSessionIsRevoked() {
         // given
         RefreshSession session = issueSession();
         RevokedAt revokedAt = new RevokedAt(ACTIVE_INSTANT);
@@ -281,7 +281,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("활성 세션의 폐기 시각은 필수다")
-    void 활성_세션의_폐기_시각은_필수다() {
+    void requiresRevocationTimeWhenRevokingActiveSession() {
         // given
         RefreshSession session = issueSession();
 
@@ -296,7 +296,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("활성 여부를 판단할 기준 시각은 필수다")
-    void 활성_여부를_판단할_기준_시각은_필수다() {
+    void requiresCurrentTimeWhenCheckingActivity() {
         // given
         RefreshSession session = issueSession();
 
@@ -309,7 +309,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("이미 폐기된 세션을 다시 폐기하면 같은 세션을 반환한다")
-    void 이미_폐기된_세션을_다시_폐기하면_같은_세션을_반환한다() {
+    void returnsSameSessionWhenRevokingAlreadyRevokedSession() {
         // given
         RefreshSession revoked = issueSession().revoke(
                 new RevokedAt(ACTIVE_INSTANT)
@@ -324,7 +324,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("리프레시 세션의 동등성은 session 식별자만 사용한다")
-    void 리프레시_세션의_동등성은_session_식별자만_사용한다() {
+    void comparesSessionsBySessionIdentifierOnly() {
         // given
         RefreshSession first = issueSession();
         RefreshSession second = RefreshSession.issue(
@@ -347,7 +347,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("활성 상태를 복원할 때 폐기 시각이 있으면 거부한다")
-    void 활성_상태를_복원할_때_폐기_시각이_있으면_거부한다() {
+    void rejectsActiveSessionWithRevocationTimeWhenReconstituting() {
         // given
         RevokedAt revokedAt = new RevokedAt(ACTIVE_INSTANT);
 
@@ -367,7 +367,7 @@ class RefreshSessionTest {
 
     @Test
     @DisplayName("폐기 상태를 복원할 때 폐기 시각이 없으면 거부한다")
-    void 폐기_상태를_복원할_때_폐기_시각이_없으면_거부한다() {
+    void rejectsRevokedSessionWithoutRevocationTimeWhenReconstituting() {
         // given
         RevokedAt missingRevokedAt = missingValue();
 

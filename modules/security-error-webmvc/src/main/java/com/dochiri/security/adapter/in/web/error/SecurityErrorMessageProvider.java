@@ -1,8 +1,8 @@
 package com.dochiri.security.adapter.in.web.error;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMessage;
-import com.dochiri.errorhandling.ApiErrorMessageProvider;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMessage;
+import com.dochiri.errorhandling.global.error.ApiErrorMessageProvider;
 import com.dochiri.security.application.exception.SecurityApplicationErrorCode;
 import org.springframework.stereotype.Component;
 

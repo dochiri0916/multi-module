@@ -1,8 +1,8 @@
 package com.dochiri.security.adapter.in.web.configuration;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorContractValidator;
-import com.dochiri.errorhandling.ErrorHandlingAutoConfiguration;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorContractValidator;
+import com.dochiri.errorhandling.global.error.ErrorHandlingAutoConfiguration;
 import com.dochiri.security.adapter.in.web.error.SecurityErrorCode;
 import com.dochiri.security.adapter.in.web.error.SecurityErrorResponsePort;
 import com.dochiri.security.application.exception.SecurityApplicationErrorCode;
@@ -31,7 +31,7 @@ class SecurityErrorAutoConfigurationTest {
 
     @Test
     @DisplayName("Security 오류와 Application 오류를 공통 계약 검증에 모두 등록한다")
-    void Security_오류와_Application_오류를_공통_계약_검증에_모두_등록한다() {
+    void registersSecurityAndApplicationErrorsInCommonContract() {
         // given
         ApiErrorCode authenticationRequired = ApiErrorCode.from(SecurityErrorCode.AUTHENTICATION_REQUIRED);
 
@@ -47,7 +47,7 @@ class SecurityErrorAutoConfigurationTest {
 
     @Test
     @DisplayName("사용자 보안 오류 Port와 handler가 있으면 기본 구현이 물러난다")
-    void 사용자_보안_오류_Port와_handler가_있으면_기본_구현이_물러난다() {
+    void backsOffWhenConsumerProvidesSecurityHandlers() {
         // given
         SecurityErrorResponsePort responsePort = mock(SecurityErrorResponsePort.class);
         AuthenticationEntryPoint entryPoint = mock(AuthenticationEntryPoint.class);

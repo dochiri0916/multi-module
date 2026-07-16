@@ -12,12 +12,16 @@ import com.dochiri.security.domain.model.TokenExpiration;
 import com.dochiri.security.domain.model.TokenId;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 
+@Component
+@RequiredArgsConstructor
 public final class JjwtTokenIssuerAdapter implements RotatingTokenIssuerPort {
 
     private static final String CLAIM_ROLE = "role";
@@ -27,12 +31,6 @@ public final class JjwtTokenIssuerAdapter implements RotatingTokenIssuerPort {
     private static final String CATEGORY_REFRESH = "refresh";
 
     private final JwtIssuerProperties properties;
-    private final SecretKey signingKey;
-
-    public JjwtTokenIssuerAdapter(JwtIssuerProperties properties) {
-        this.properties = properties;
-        this.signingKey = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
-    }
 
     @Override
     public IssuedTokenPair issue(
@@ -129,6 +127,10 @@ public final class JjwtTokenIssuerAdapter implements RotatingTokenIssuerPort {
         if (sessionId != null) {
             builder.claim(CLAIM_SESSION_ID, sessionId.value());
         }
-        return new EncodedToken(builder.signWith(signingKey).compact());
+        return new EncodedToken(builder.signWith(signingKey()).compact());
+    }
+
+    private SecretKey signingKey() {
+        return Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -22,7 +22,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("인증 역할의 prefix와 앞뒤 공백을 제거하고 권한 형식으로 복원한다")
-    void 인증_역할의_prefix와_앞뒤_공백을_제거하고_권한_형식으로_복원한다() {
+    void normalizesRoleAndRestoresGrantedAuthority() {
         // given
         String value = "  ROLE_ADMIN  ";
 
@@ -37,7 +37,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("인증 역할이 null이면 전용 오류 코드로 거부한다")
-    void 인증_역할이_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullAuthenticationRoleWithDedicatedErrorCode() {
         // given
         String value = missingValue();
 
@@ -49,7 +49,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("prefix만 있는 인증 역할은 blank 오류 코드로 거부한다")
-    void prefix만_있는_인증_역할은_blank_오류_코드로_거부한다() {
+    void rejectsRoleContainingOnlyPrefixWithBlankErrorCode() {
         // given
         String value = " ROLE_ ";
 
@@ -61,7 +61,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("인코딩 토큰을 정규화하되 문자열 표현에서는 원문을 숨긴다")
-    void 인코딩_토큰을_정규화하되_문자열_표현에서는_원문을_숨긴다() {
+    void normalizesEncodedTokenAndRedactsToString() {
         // given
         String value = "  sensitive-token  ";
 
@@ -76,7 +76,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("인코딩 토큰이 null이면 전용 오류 코드로 거부한다")
-    void 인코딩_토큰이_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullEncodedTokenWithDedicatedErrorCode() {
         // given
         String value = missingValue();
 
@@ -88,7 +88,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("인코딩 토큰이 blank이면 전용 오류 코드로 거부한다")
-    void 인코딩_토큰이_blank이면_전용_오류_코드로_거부한다() {
+    void rejectsBlankEncodedTokenWithDedicatedErrorCode() {
         // given
         String value = "   ";
 
@@ -100,7 +100,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("토큰 식별자의 앞뒤 공백을 제거한다")
-    void 토큰_식별자의_앞뒤_공백을_제거한다() {
+    void trimsSurroundingTokenIdentifierWhitespace() {
         // given
         String value = "  token-id-01  ";
 
@@ -113,7 +113,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("토큰 식별자가 null이면 전용 오류 코드로 거부한다")
-    void 토큰_식별자가_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullTokenIdentifierWithDedicatedErrorCode() {
         // given
         String value = missingValue();
 
@@ -125,7 +125,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("토큰 식별자가 blank이면 전용 오류 코드로 거부한다")
-    void 토큰_식별자가_blank이면_전용_오류_코드로_거부한다() {
+    void rejectsBlankTokenIdentifierWithDedicatedErrorCode() {
         // given
         String value = "   ";
 
@@ -137,7 +137,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("현재 시각이 null이면 전용 오류 코드로 거부한다")
-    void 현재_시각이_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullCurrentTimeWithDedicatedErrorCode() {
         // given
         Instant value = missingValue();
 
@@ -149,7 +149,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("토큰 만료 시각이 null이면 전용 오류 코드로 거부한다")
-    void 토큰_만료_시각이_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullTokenExpirationWithDedicatedErrorCode() {
         // given
         Instant value = missingValue();
 
@@ -161,7 +161,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("폐기 시각이 null이면 전용 오류 코드로 거부한다")
-    void 폐기_시각이_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullRevocationTimeWithDedicatedErrorCode() {
         // given
         Instant value = missingValue();
 
@@ -173,7 +173,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("만료 시각보다 앞선 현재 시각에는 토큰이 만료되지 않는다")
-    void 만료_시각보다_앞선_현재_시각에는_토큰이_만료되지_않는다() {
+    void doesNotExpireTokenBeforeExpirationTime() {
         // given
         TokenExpiration expiration = new TokenExpiration(NOW.plusSeconds(1));
         CurrentTime currentTime = new CurrentTime(NOW);
@@ -187,7 +187,7 @@ class SecurityValueObjectTest {
 
     @Test
     @DisplayName("만료 시각 경계에서는 토큰이 만료된다")
-    void 만료_시각_경계에서는_토큰이_만료된다() {
+    void expiresTokenAtExpirationBoundary() {
         // given
         TokenExpiration expiration = new TokenExpiration(NOW);
         CurrentTime currentTime = new CurrentTime(NOW);

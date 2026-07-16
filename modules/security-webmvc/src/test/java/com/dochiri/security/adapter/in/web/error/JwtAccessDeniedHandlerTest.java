@@ -15,7 +15,7 @@ class JwtAccessDeniedHandlerTest {
 
     @Test
     @DisplayName("접근 거부 handler는 공통 응답 Port에 SECURITY ACCESS DENIED 코드를 전달한다")
-    void 접근_거부_handler는_공통_응답_Port에_SECURITY_ACCESS_DENIED_코드를_전달한다() throws IOException {
+    void forwardsAccessDeniedCodeToCommonResponsePort() throws IOException {
         // given
         AtomicReference<SecurityErrorCode> recordedCode = new AtomicReference<>();
         SecurityErrorResponsePort responsePort = (code, request, response) -> recordedCode.set(code);

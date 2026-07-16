@@ -1,12 +1,12 @@
 package com.dochiri.security.adapter.in.web.error;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMapping;
-import com.dochiri.errorhandling.ApiErrorMessage;
-import com.dochiri.errorhandling.ApiErrorMessageCatalog;
-import com.dochiri.errorhandling.ApiExceptionMapper;
-import com.dochiri.errorhandling.ApiProblemDetailFactory;
-import com.dochiri.errorhandling.MappedApiError;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMapping;
+import com.dochiri.errorhandling.global.error.ApiErrorMessage;
+import com.dochiri.errorhandling.global.error.ApiErrorMessageCatalog;
+import com.dochiri.errorhandling.global.error.ApiExceptionMapper;
+import com.dochiri.errorhandling.global.error.ApiProblemDetailFactory;
+import com.dochiri.errorhandling.global.error.MappedApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

@@ -1,5 +1,6 @@
 package com.dochiri.security.adapter.out.persistence.audit;
 
+import com.dochiri.security.adapter.out.persistence.configuration.SecurityAuditProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SecurityAuditorAwareTest {
 
-    private final SecurityAuditorAware auditorAware = new SecurityAuditorAware("system-subject");
+    private final SecurityAuditorAware auditorAware = new SecurityAuditorAware(
+            new SecurityAuditProperties("system-subject")
+    );
 
     @AfterEach
     void tearDown() {
@@ -24,7 +27,7 @@ class SecurityAuditorAwareTest {
 
     @Test
     @DisplayName("인증 정보가 없으면 시스템 subject를 반환한다")
-    void 인증_정보가_없으면_시스템_subject를_반환한다() {
+    void returnsSystemSubjectWhenAuthenticationIsMissing() {
         // given
         SecurityContextHolder.clearContext();
 
@@ -37,7 +40,7 @@ class SecurityAuditorAwareTest {
 
     @Test
     @DisplayName("인증되면 숫자 DB 키가 아닌 문자열 principal 이름을 반환한다")
-    void 인증되면_숫자_DB_키가_아닌_문자열_principal_이름을_반환한다() {
+    void returnsStringPrincipalNameForAuthenticatedSubject() {
         // given
         String subject = "550e8400-e29b-41d4-a716-446655440000";
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -56,7 +59,7 @@ class SecurityAuditorAwareTest {
 
     @Test
     @DisplayName("익명 인증이면 시스템 subject를 반환한다")
-    void 익명_인증이면_시스템_subject를_반환한다() {
+    void returnsSystemSubjectForAnonymousAuthentication() {
         // given
         AnonymousAuthenticationToken authentication = new AnonymousAuthenticationToken(
                 "key",

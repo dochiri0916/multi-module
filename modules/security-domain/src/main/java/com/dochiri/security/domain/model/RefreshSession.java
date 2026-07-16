@@ -9,25 +9,17 @@ import com.dochiri.security.domain.exception.InvalidTokenExpirationException;
 import com.dochiri.security.domain.exception.InvalidTokenIdException;
 import com.dochiri.security.domain.exception.RefreshTokenReplayDetectedException;
 
-public final class RefreshSession {
+public record RefreshSession(
+        RefreshSessionId sessionId,
+        TokenId currentTokenId,
+        AuthenticationSubject subject,
+        AuthenticationRole role,
+        TokenExpiration expiresAt,
+        RefreshSessionStatus status,
+        RevokedAt revokedAt
+) {
 
-    private final RefreshSessionId sessionId;
-    private final TokenId currentTokenId;
-    private final AuthenticationSubject subject;
-    private final AuthenticationRole role;
-    private final TokenExpiration expiresAt;
-    private final RefreshSessionStatus status;
-    private final RevokedAt revokedAt;
-
-    private RefreshSession(
-            RefreshSessionId sessionId,
-            TokenId currentTokenId,
-            AuthenticationSubject subject,
-            AuthenticationRole role,
-            TokenExpiration expiresAt,
-            RefreshSessionStatus status,
-            RevokedAt revokedAt
-    ) {
+    public RefreshSession {
         if (sessionId == null) {
             throw InvalidRefreshSessionIdException.required();
         }
@@ -46,14 +38,12 @@ public final class RefreshSession {
         if (status == null) {
             throw InvalidRefreshSessionStateException.statusRequired();
         }
-        validateState(status, revokedAt);
-        this.sessionId = sessionId;
-        this.currentTokenId = currentTokenId;
-        this.subject = subject;
-        this.role = role;
-        this.expiresAt = expiresAt;
-        this.status = status;
-        this.revokedAt = revokedAt;
+        if (status == RefreshSessionStatus.REVOKED && revokedAt == null) {
+            throw InvalidRefreshSessionStateException.revokedAtRequired(status);
+        }
+        if (status == RefreshSessionStatus.ACTIVE && revokedAt != null) {
+            throw InvalidRefreshSessionStateException.activeSessionHasRevokedAt(status);
+        }
     }
 
     public static RefreshSession issue(
@@ -122,7 +112,7 @@ public final class RefreshSession {
     }
 
     public RefreshSession revoke(RevokedAt revocation) {
-        if (isRevoked()) {
+        if (status.isRevoked()) {
             return this;
         }
         if (revocation == null) {
@@ -146,60 +136,15 @@ public final class RefreshSession {
         return status == RefreshSessionStatus.ACTIVE && !expiresAt.isExpiredAt(currentTime);
     }
 
-    public boolean isRevoked() {
-        return status == RefreshSessionStatus.REVOKED;
-    }
-
-    public RefreshSessionId sessionId() {
-        return sessionId;
-    }
-
-    public TokenId currentTokenId() {
-        return currentTokenId;
-    }
-
-    public AuthenticationSubject subject() {
-        return subject;
-    }
-
-    public AuthenticationRole role() {
-        return role;
-    }
-
-    public TokenExpiration expiresAt() {
-        return expiresAt;
-    }
-
-    public RefreshSessionStatus status() {
-        return status;
-    }
-
-    public RevokedAt revokedAt() {
-        return revokedAt;
-    }
-
     @Override
     public boolean equals(Object object) {
-        if (this == object) {
-            return true;
-        }
-        if (!(object instanceof RefreshSession that)) {
-            return false;
-        }
-        return sessionId.equals(that.sessionId);
+        return this == object
+                || object instanceof RefreshSession that
+                && sessionId.equals(that.sessionId);
     }
 
     @Override
     public int hashCode() {
         return sessionId.hashCode();
-    }
-
-    private static void validateState(RefreshSessionStatus status, RevokedAt revokedAt) {
-        if (status == RefreshSessionStatus.REVOKED && revokedAt == null) {
-            throw InvalidRefreshSessionStateException.revokedAtRequired(status);
-        }
-        if (status == RefreshSessionStatus.ACTIVE && revokedAt != null) {
-            throw InvalidRefreshSessionStateException.activeSessionHasRevokedAt(status);
-        }
     }
 }

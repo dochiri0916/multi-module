@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class CleanupRefreshSessionsService implements CleanupRefreshSessionsUseCase {
+public final class CleanupRefreshSessionsService implements CleanupRefreshSessionsUseCase {
 
     private final RefreshSessionCleanupPort refreshSessionCleanupPort;
 

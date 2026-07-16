@@ -3,6 +3,7 @@ package com.dochiri.security.adapter.in.web.configuration;
 import com.dochiri.security.adapter.in.web.authentication.JwtAuthenticationFilter;
 import com.dochiri.security.adapter.in.web.authentication.PublicApiRequestMatcher;
 import com.dochiri.security.application.port.out.AccessTokenVerifierPort;
+import lombok.SneakyThrows;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -42,6 +43,7 @@ public class SecurityFilterChainAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SecurityFilterChain.class)
+    @SneakyThrows
     SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -50,27 +52,23 @@ public class SecurityFilterChainAutoConfiguration {
             AccessDeniedHandler accessDeniedHandler,
             SecurityWebProperties properties
     ) {
-        try {
-            return http
-                    .csrf(AbstractHttpConfigurer::disable)
-                    .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
-                    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .exceptionHandling(exceptions -> exceptions
-                            .authenticationEntryPoint(authenticationEntryPoint)
-                            .accessDeniedHandler(accessDeniedHandler)
-                    )
-                    .authorizeHttpRequests(authorize -> {
-                        authorize.requestMatchers(publicApiRequestMatcher).permitAll();
-                        if (properties.swaggerPublic()) {
-                            authorize.requestMatchers(SWAGGER_ENDPOINTS).permitAll();
-                        }
-                        authorize.anyRequest().authenticated();
-                    })
-                    .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                    .cors(Customizer.withDefaults())
-                    .build();
-        } catch (Exception exception) {
-            throw new IllegalStateException("기본 SecurityFilterChain을 구성할 수 없습니다.", exception);
-        }
+        return http
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
+                .authorizeHttpRequests(authorize -> {
+                    authorize.requestMatchers(publicApiRequestMatcher).permitAll();
+                    if (properties.swaggerPublic()) {
+                        authorize.requestMatchers(SWAGGER_ENDPOINTS).permitAll();
+                    }
+                    authorize.anyRequest().authenticated();
+                })
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .cors(Customizer.withDefaults())
+                .build();
     }
 }

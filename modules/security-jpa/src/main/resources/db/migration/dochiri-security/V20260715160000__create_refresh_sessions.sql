@@ -1,7 +1,7 @@
 CREATE TABLE refresh_sessions (
     id BIGINT NOT NULL AUTO_INCREMENT,
     version BIGINT NOT NULL DEFAULT 0,
-    session_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    session_id VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     subject_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
     role_name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
     current_token_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,

@@ -14,7 +14,7 @@ class RefreshSessionIdTest {
 
     @Test
     @DisplayName("리프레시 세션 식별자는 앞뒤 공백을 제거한다")
-    void 리프레시_세션_식별자는_앞뒤_공백을_제거한다() {
+    void trimsSurroundingRefreshSessionIdentifierWhitespace() {
         // given
         String rawSessionId = "  session-id-01  ";
 
@@ -27,7 +27,7 @@ class RefreshSessionIdTest {
 
     @Test
     @DisplayName("리프레시 세션 식별자가 null이면 전용 오류 코드로 거부한다")
-    void 리프레시_세션_식별자가_null이면_전용_오류_코드로_거부한다() {
+    void rejectsNullRefreshSessionIdentifierWithDedicatedErrorCode() {
         // given
         String missingSessionId = missingValue();
 
@@ -40,7 +40,7 @@ class RefreshSessionIdTest {
 
     @Test
     @DisplayName("리프레시 세션 식별자가 blank이면 전용 오류 코드로 거부한다")
-    void 리프레시_세션_식별자가_blank이면_전용_오류_코드로_거부한다() {
+    void rejectsBlankRefreshSessionIdentifierWithDedicatedErrorCode() {
         // given
         String blankSessionId = "   ";
 
@@ -53,7 +53,7 @@ class RefreshSessionIdTest {
 
     @Test
     @DisplayName("리프레시 세션 식별자 generate 팩토리는 하이픈 없는 UUID 문자열을 만든다")
-    void 리프레시_세션_식별자_generate_팩토리는_하이픈_없는_UUID_문자열을_만든다() {
+    void generatesHyphenlessUuidRefreshSessionIdentifier() {
         // given
         int expectedLength = 32;
 

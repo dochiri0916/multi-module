@@ -5,6 +5,7 @@ import com.dochiri.security.domain.model.AuthenticationSubject;
 import com.dochiri.security.domain.model.CurrentTime;
 import com.dochiri.security.domain.model.TokenId;
 
+@FunctionalInterface
 public interface TokenIssuerPort {
 
     IssuedTokenPair issue(

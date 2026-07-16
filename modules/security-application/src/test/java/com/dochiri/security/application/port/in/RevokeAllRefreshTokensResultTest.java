@@ -12,7 +12,7 @@ class RevokeAllRefreshTokensResultTest {
 
     @Test
     @DisplayName("음수 리프레시 토큰 폐기 건수는 전용 Application 예외로 거부한다")
-    void 음수_리프레시_토큰_폐기_건수는_전용_Application_예외로_거부한다() {
+    void rejectsNegativeRefreshTokenRevocationCount() {
         // given
         int revokedCount = -1;
 

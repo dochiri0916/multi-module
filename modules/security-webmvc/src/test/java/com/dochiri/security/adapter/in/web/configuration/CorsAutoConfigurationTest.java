@@ -21,7 +21,7 @@ class CorsAutoConfigurationTest {
 
     @Test
     @DisplayName("명시한 origin에는 credentials를 허용하는 CORS 설정을 등록한다")
-    void 명시한_origin에는_credentials를_허용하는_CORS_설정을_등록한다() {
+    void registersCredentialEnabledCorsForConfiguredOrigin() {
         // given
         WebApplicationContextRunner runner = contextRunner
                 .withPropertyValues("cors.allowed-origins[0]=https://example.com");
@@ -36,7 +36,7 @@ class CorsAutoConfigurationTest {
 
     @Test
     @DisplayName("wildcard origin에는 credentials를 비활성화한다")
-    void wildcard_origin에는_credentials를_비활성화한다() {
+    void disablesCredentialsForWildcardOrigin() {
         // given
         WebApplicationContextRunner runner = contextRunner.withPropertyValues("cors.allowed-origins[0]=*");
 
@@ -50,7 +50,7 @@ class CorsAutoConfigurationTest {
 
     @Test
     @DisplayName("소비자가 CORS source를 제공하면 기본 Bean이 물러난다")
-    void 소비자가_CORS_source를_제공하면_기본_Bean이_물러난다() {
+    void backsOffWhenConsumerProvidesCorsSource() {
         // given
         CorsConfigurationSource customSource = mock(CorsConfigurationSource.class);
         WebApplicationContextRunner runner = contextRunner
@@ -62,7 +62,7 @@ class CorsAutoConfigurationTest {
 
     @Test
     @DisplayName("origin 설정이 없으면 불변 빈 목록을 사용한다")
-    void origin_설정이_없으면_불변_빈_목록을_사용한다() {
+    void usesImmutableEmptyOriginListWhenConfigurationIsMissing() {
         // given
         List<String> origins = new HashMap<String, List<String>>().get("missing");
 

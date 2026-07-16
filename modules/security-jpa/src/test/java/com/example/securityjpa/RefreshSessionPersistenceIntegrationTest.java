@@ -13,10 +13,10 @@ import com.dochiri.security.application.port.in.RevokeRefreshTokenUseCase;
 import com.dochiri.security.application.port.in.RotateTokensCommand;
 import com.dochiri.security.application.port.in.RotateTokensResult;
 import com.dochiri.security.application.port.in.RotateTokensUseCase;
-import com.dochiri.security.application.port.in.VerifyRefreshTokenCommand;
+import com.dochiri.security.application.port.in.VerifyRefreshTokenQuery;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenResult;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenUseCase;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.domain.model.AuthenticationRole;
 import com.dochiri.security.domain.model.AuthenticationSubject;
 import com.dochiri.security.domain.model.CurrentTime;
@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 @SpringBootTest(
-        classes = RefreshSessionPersistenceIntegrationTest.TestApplication.class,
+        classes = RefreshSessionPersistenceIntegrationTest.RefreshTokenConsumerApplication.class,
         properties = {
                 "spring.jpa.hibernate.ddl-auto=validate",
                 "spring.jpa.properties.hibernate.jdbc.time_zone=UTC",
@@ -122,7 +122,7 @@ class RefreshSessionPersistenceIntegrationTest {
     private CleanupRefreshSessionsUseCase cleanupRefreshSessionsUseCase;
 
     @Autowired
-    private RefreshSessionRepositoryPort refreshSessionRepositoryPort;
+    private RefreshSessionPort refreshSessionRepositoryPort;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -137,14 +137,14 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("JJWT와 JPA adapter 조합으로 문자열 subject의 리프레시 토큰을 발급하고 검증한다")
-    void JJWT와_JPA_adapter_조합으로_문자열_subject의_리프레시_토큰을_발급하고_검증한다() {
+    void issuesAndVerifiesRefreshTokenWithJwtAndJpaAdapters() {
         // given
         IssueTokensCommand command = new IssueTokensCommand(SUBJECT, ROLE);
 
         // when
         IssueTokensResult issued = issueTokensUseCase.execute(command);
         VerifyRefreshTokenResult verified = verifyRefreshTokenUseCase.execute(
-                new VerifyRefreshTokenCommand(issued.refreshToken())
+                new VerifyRefreshTokenQuery(issued.refreshToken())
         );
 
         // then
@@ -158,7 +158,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("폐기된 리프레시 토큰은 같은 Application 오류 계약으로 검증을 거부한다")
-    void 폐기된_리프레시_토큰은_같은_Application_오류_계약으로_검증을_거부한다() {
+    void rejectsRevokedRefreshTokenWithApplicationErrorContract() {
         // given
         IssueTokensResult issued = issueTokensUseCase.execute(
                 new IssueTokensCommand(SUBJECT, ROLE)
@@ -169,13 +169,13 @@ class RefreshSessionPersistenceIntegrationTest {
 
         // then
         assertThatThrownBy(() -> verifyRefreshTokenUseCase.execute(
-                new VerifyRefreshTokenCommand(issued.refreshToken())
+                new VerifyRefreshTokenQuery(issued.refreshToken())
         )).isInstanceOf(RefreshTokenInactiveException.class);
     }
 
     @Test
     @DisplayName("리프레시 token을 rotation하면 새 token만 검증되고 이전 token 재사용은 세션을 폐기한다")
-    void 리프레시_token을_rotation하면_새_token만_검증되고_이전_token_재사용은_세션을_폐기한다() {
+    void rotatesRefreshTokenAndRevokesSessionOnReplay() {
         // given
         IssueTokensResult issued = issueTokensUseCase.execute(
                 new IssueTokensCommand(SUBJECT, ROLE)
@@ -186,7 +186,7 @@ class RefreshSessionPersistenceIntegrationTest {
                 new RotateTokensCommand(issued.refreshToken())
         );
         VerifyRefreshTokenResult verified = verifyRefreshTokenUseCase.execute(
-                new VerifyRefreshTokenCommand(rotated.refreshToken())
+                new VerifyRefreshTokenQuery(rotated.refreshToken())
         );
 
         // then
@@ -195,13 +195,13 @@ class RefreshSessionPersistenceIntegrationTest {
                 new RotateTokensCommand(issued.refreshToken())
         )).isInstanceOf(RefreshTokenReplayException.class);
         assertThatThrownBy(() -> verifyRefreshTokenUseCase.execute(
-                new VerifyRefreshTokenCommand(rotated.refreshToken())
+                new VerifyRefreshTokenQuery(rotated.refreshToken())
         )).isInstanceOf(RefreshTokenInactiveException.class);
     }
 
     @Test
     @DisplayName("같은 리프레시 token의 동시 rotation은 한 건만 성공하고 재사용 탐지로 세션을 폐기한다")
-    void 같은_리프레시_token의_동시_rotation은_한_건만_성공하고_재사용_탐지로_세션을_폐기한다()
+    void allowsOnlyOneConcurrentRotationAndRevokesSessionOnReplay()
             throws InterruptedException, ExecutionException {
         // given
         IssueTokensResult issued = issueTokensUseCase.execute(
@@ -227,14 +227,14 @@ class RefreshSessionPersistenceIntegrationTest {
                     .findFirst()
                     .orElseThrow();
             assertThatThrownBy(() -> verifyRefreshTokenUseCase.execute(
-                    new VerifyRefreshTokenCommand(successfulRotation.refreshToken())
+                new VerifyRefreshTokenQuery(successfulRotation.refreshToken())
             )).isInstanceOf(RefreshTokenInactiveException.class);
         }
     }
 
     @Test
     @DisplayName("MySQL migration이 문자열 식별자의 길이와 대소문자 구분 collation을 생성한다")
-    void MySQL_migration이_문자열_식별자의_길이와_대소문자_구분_collation을_생성한다() {
+    void createsStringIdentifierColumnsWithBinaryCollation() {
         // given
         String tableName = "refresh_sessions";
 
@@ -266,7 +266,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("MySQL migration이 UTC 시각을 마이크로초 정밀도로 저장한다")
-    void MySQL_migration이_UTC_시각을_마이크로초_정밀도로_저장한다() {
+    void storesUtcTimestampsWithMicrosecondPrecision() {
         // given
         RefreshSessionId sessionId = new RefreshSessionId("microsecond-session-id");
         TokenId tokenId = new TokenId("microsecond-token-id");
@@ -291,7 +291,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("MySQL migration이 전체 폐기와 cleanup 조회에 필요한 복합 인덱스를 생성한다")
-    void MySQL_migration이_전체_폐기와_cleanup_조회에_필요한_복합_인덱스를_생성한다() {
+    void createsCompositeIndexesForRevocationAndCleanup() {
         // given
         String indexName = "idx_refresh_sessions_subject_revoked_expires";
 
@@ -310,7 +310,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("versioned migration은 중복 token 식별자 저장을 unique 제약으로 거부한다")
-    void versioned_migration은_중복_token_식별자_저장을_unique_제약으로_거부한다() {
+    void rejectsDuplicateTokenIdentifierWithUniqueConstraint() {
         // given
         String duplicateTokenId = "duplicate-token-id";
         int insertedRows = jdbcTemplate.update(
@@ -339,7 +339,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("versioned migration은 subject가 없는 리프레시 토큰 저장을 거부한다")
-    void versioned_migration은_subject가_없는_리프레시_토큰_저장을_거부한다() {
+    void rejectsMissingSubjectWithNotNullConstraint() {
         // given
         String missingSubject = new HashMap<String, String>().get("missing");
         AtomicInteger insertedRows = new AtomicInteger();
@@ -358,7 +358,7 @@ class RefreshSessionPersistenceIntegrationTest {
 
     @Test
     @DisplayName("cleanup은 MySQL에서 보관 경계보다 오래된 만료·폐기 세션만 batch로 삭제한다")
-    void cleanup은_MySQL에서_보관_경계보다_오래된_만료_폐기_세션만_batch로_삭제한다() {
+    void deletesOnlyExpiredOrRevokedSessionsPastCleanupBoundary() {
         // given
         Instant cutoff = Instant.parse("2000-01-01T00:00:00Z");
         insertCleanupSession("expired", Instant.parse("1999-12-31T23:59:59Z"), null);
@@ -410,7 +410,7 @@ class RefreshSessionPersistenceIntegrationTest {
             return RotationAttempt.succeeded(rotateTokensUseCase.execute(
                     new RotateTokensCommand(issued.refreshToken())
             ));
-        } catch (RuntimeException exception) {
+        } catch (RefreshTokenReplayException exception) {
             return RotationAttempt.failed(exception);
         }
     }
@@ -431,6 +431,6 @@ class RefreshSessionPersistenceIntegrationTest {
     }
 
     @SpringBootApplication
-    static class TestApplication {
+    static class RefreshTokenConsumerApplication {
     }
 }

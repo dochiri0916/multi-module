@@ -5,7 +5,7 @@ import com.dochiri.security.application.port.out.DecodedRefreshToken;
 import com.dochiri.security.application.port.out.IssuedTokenPair;
 import com.dochiri.security.application.port.out.RefreshTokenVerifierPort;
 import com.dochiri.security.application.port.out.RefreshSessionBulkRevocationPort;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.application.port.out.TokenIssuerPort;
 import com.dochiri.security.application.port.out.TokenIdGeneratorPort;
 import com.dochiri.security.domain.model.AuthenticationRole;
@@ -59,7 +59,7 @@ final class SecurityApplicationTestFixture {
 
     static final class FixedRefreshTokenVerifier implements RefreshTokenVerifierPort {
 
-        private DecodedRefreshToken decodedRefreshToken = new DecodedRefreshToken(
+        private DecodedRefreshToken decodedRefreshTokenValue = new DecodedRefreshToken(
                 SUBJECT,
                 ROLE,
                 TOKEN_ID,
@@ -68,15 +68,15 @@ final class SecurityApplicationTestFixture {
 
         @Override
         public DecodedRefreshToken verifyRefresh(EncodedToken refreshToken) {
-            return decodedRefreshToken;
+            return decodedRefreshTokenValue;
         }
 
         void decodedRefreshToken(DecodedRefreshToken value) {
-            decodedRefreshToken = value;
+            decodedRefreshTokenValue = value;
         }
     }
 
-    static final class InMemoryRefreshSessionRepository implements RefreshSessionRepositoryPort {
+    static final class InMemoryRefreshSessionRepository implements RefreshSessionPort {
 
         private final Map<RefreshSessionId, RefreshSession> sessions = new LinkedHashMap<>();
 
@@ -113,27 +113,27 @@ final class SecurityApplicationTestFixture {
 
     static final class RecordingBulkRevocationPort implements RefreshSessionBulkRevocationPort {
 
-        private int result;
-        private AuthenticationSubject revokedSubject;
-        private RevokedAt revokedAt;
+        private int revokedCountResult;
+        private AuthenticationSubject lastRevokedSubject;
+        private RevokedAt lastRevokedAt;
 
         @Override
         public int revokeAll(AuthenticationSubject subject, RevokedAt revokedAt) {
-            revokedSubject = subject;
-            this.revokedAt = revokedAt;
-            return result;
+            lastRevokedSubject = subject;
+            lastRevokedAt = revokedAt;
+            return revokedCountResult;
         }
 
         void result(int value) {
-            result = value;
+            revokedCountResult = value;
         }
 
         AuthenticationSubject revokedSubject() {
-            return revokedSubject;
+            return lastRevokedSubject;
         }
 
         RevokedAt revokedAt() {
-            return revokedAt;
+            return lastRevokedAt;
         }
     }
 }

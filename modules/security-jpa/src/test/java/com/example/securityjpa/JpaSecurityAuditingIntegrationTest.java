@@ -16,7 +16,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
-        classes = JpaSecurityAuditingIntegrationTest.TestApplication.class,
+        classes = JpaSecurityAuditingIntegrationTest.JpaSecurityAuditingApplication.class,
         properties = {
                 "spring.datasource.url=jdbc:h2:mem:securityaudit;DB_CLOSE_DELAY=-1",
                 "spring.datasource.driver-class-name=org.h2.Driver",
@@ -39,7 +39,7 @@ class JpaSecurityAuditingIntegrationTest {
 
     @Test
     @DisplayName("인증 정보가 없으면 설정한 시스템 subject를 감사자 값으로 저장한다")
-    void 인증정보가_없으면_security_systemUserId가_auditor로_사용된다() {
+    void usesConfiguredSystemSubjectWhenAuthenticationIsMissing() {
         // given
         AuditedSecurityEntity entity = new AuditedSecurityEntity("system");
 
@@ -52,7 +52,7 @@ class JpaSecurityAuditingIntegrationTest {
 
     @Test
     @DisplayName("인증이면 문자열 subject를 생성 감사자 값으로 저장한다")
-    void JwtPrincipal_인증이면_userId가_createdBy에_반영된다() {
+    void usesAuthenticatedSubjectForCreatedBy() {
         // given
         authenticate("member-123");
         AuditedSecurityEntity entity = new AuditedSecurityEntity("authenticated");
@@ -66,7 +66,7 @@ class JpaSecurityAuditingIntegrationTest {
 
     @Test
     @DisplayName("엔티티를 수정하면 현재 인증 subject를 수정 감사자 값으로 저장한다")
-    void 수정하면_인증된_userId가_updatedBy에_반영된다() {
+    void usesAuthenticatedSubjectForUpdatedBy() {
         // given
         authenticate("member-123");
         AuditedSecurityEntity created = repository.saveAndFlush(new AuditedSecurityEntity("before"));
@@ -95,6 +95,6 @@ class JpaSecurityAuditingIntegrationTest {
     }
 
     @SpringBootApplication
-    static class TestApplication {
+    static class JpaSecurityAuditingApplication {
     }
 }

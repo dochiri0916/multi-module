@@ -25,7 +25,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("cleanup은 소비자가 지정한 보관 경계와 batch 크기로 세션을 한 번만 삭제한다")
-    void cleanup은_소비자가_지정한_보관_경계와_batch_크기로_세션을_한_번만_삭제한다() {
+    void deletesSessionsOnceWithConsumerRetentionBoundsAndBatchSize() {
         // given
         RecordingCleanupPort cleanupPort = new RecordingCleanupPort();
         cleanupPort.deletedCount(100);
@@ -49,7 +49,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("삭제 건수가 batch 크기보다 작으면 추가 cleanup이 필요하지 않다고 응답한다")
-    void 삭제_건수가_batch_크기보다_작으면_추가_cleanup이_필요하지_않다고_응답한다() {
+    void reportsNoMoreCleanupWhenDeletedCountIsBelowBatchSize() {
         // given
         RecordingCleanupPort cleanupPort = new RecordingCleanupPort();
         cleanupPort.deletedCount(99);
@@ -69,7 +69,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("cleanup batch 크기가 허용 범위를 벗어나면 전용 Application 오류로 거부한다")
-    void cleanup_batch_크기가_허용_범위를_벗어나면_전용_Application_오류로_거부한다() {
+    void rejectsCleanupBatchSizeAboveAllowedRange() {
         // given
         int excessiveBatchSize = 1_001;
 
@@ -87,7 +87,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("cleanup batch 크기가 0이면 전용 Application 오류로 거부한다")
-    void cleanup_batch_크기가_0이면_전용_Application_오류로_거부한다() {
+    void rejectsZeroCleanupBatchSize() {
         // given
         int emptyBatchSize = 0;
 
@@ -105,7 +105,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("cleanup Port가 음수 삭제 건수를 반환하면 계약 위반으로 거부한다")
-    void cleanup_Port가_음수_삭제_건수를_반환하면_계약_위반으로_거부한다() {
+    void rejectsNegativeDeletedCountFromCleanupPort() {
         // given
         RecordingCleanupPort cleanupPort = new RecordingCleanupPort();
         cleanupPort.deletedCount(-1);
@@ -125,7 +125,7 @@ class CleanupRefreshSessionsServiceTest {
 
     @Test
     @DisplayName("cleanup Port가 요청 batch보다 큰 삭제 건수를 반환하면 계약 위반으로 거부한다")
-    void cleanup_Port가_요청_batch보다_큰_삭제_건수를_반환하면_계약_위반으로_거부한다() {
+    void rejectsDeletedCountAboveRequestedBatchFromCleanupPort() {
         // given
         RecordingCleanupPort cleanupPort = new RecordingCleanupPort();
         cleanupPort.deletedCount(101);
@@ -146,15 +146,15 @@ class CleanupRefreshSessionsServiceTest {
     private static final class RecordingCleanupPort implements RefreshSessionCleanupPort {
 
         private int result;
-        private CurrentTime expiredBefore;
-        private RevokedAt revokedBefore;
-        private int batchSize;
+        private CurrentTime capturedExpiredBefore;
+        private RevokedAt capturedRevokedBefore;
+        private int capturedBatchSize;
 
         @Override
         public int deleteBatch(CurrentTime expiredBefore, RevokedAt revokedBefore, int batchSize) {
-            this.expiredBefore = expiredBefore;
-            this.revokedBefore = revokedBefore;
-            this.batchSize = batchSize;
+            capturedExpiredBefore = expiredBefore;
+            capturedRevokedBefore = revokedBefore;
+            capturedBatchSize = batchSize;
             return result;
         }
 
@@ -163,15 +163,15 @@ class CleanupRefreshSessionsServiceTest {
         }
 
         CurrentTime expiredBefore() {
-            return expiredBefore;
+            return capturedExpiredBefore;
         }
 
         RevokedAt revokedBefore() {
-            return revokedBefore;
+            return capturedRevokedBefore;
         }
 
         int batchSize() {
-            return batchSize;
+            return capturedBatchSize;
         }
     }
 }

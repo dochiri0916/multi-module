@@ -10,7 +10,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(classes = BaseEntityIntegrationTest.TestApplication.class)
+@SpringBootTest(classes = BaseEntityIntegrationTest.JpaApplication.class)
 @TestPropertySource(properties = {
         "spring.datasource.url=jdbc:h2:mem:baseentity;DB_CLOSE_DELAY=-1",
         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -30,7 +30,7 @@ class BaseEntityIntegrationTest {
 
     @Test
     @DisplayName("security 모듈 없이 fallback 감사자와 QueryDSL을 함께 구성한다")
-    void security모듈이_없어도_createdBy가_fallback_auditor로_채워지고_queryFactory가_등록된다() {
+    void configuresFallbackAuditorAndQueryFactoryWithoutSecurityModule() {
         // given
         AuditableEntity entity = auditableEntityRepository.saveAndFlush(new AuditableEntity("auditor"));
 
@@ -45,7 +45,7 @@ class BaseEntityIntegrationTest {
 
     @Test
     @DisplayName("BaseEntity를 수정하면 수정 시각과 fallback 감사자를 기록한다")
-    void 수정하면_updatedAt과_updatedBy가_채워진다() {
+    void recordsUpdatedAuditFieldsWhenEntityChanges() {
         // given
         AuditableEntity created = auditableEntityRepository.saveAndFlush(new AuditableEntity("before"));
         AuditableEntity entity = auditableEntityRepository.findById(created.getId()).orElseThrow();
@@ -60,6 +60,6 @@ class BaseEntityIntegrationTest {
     }
 
     @SpringBootApplication
-    static class TestApplication {
+    static class JpaApplication {
     }
 }

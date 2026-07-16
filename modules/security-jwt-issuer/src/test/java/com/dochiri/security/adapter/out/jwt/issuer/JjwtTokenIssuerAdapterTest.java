@@ -43,7 +43,7 @@ class JjwtTokenIssuerAdapterTest {
 
     @Test
     @DisplayName("Access와 Refresh Token을 한 쌍으로 발급한다")
-    void Access와_Refresh_Token을_한_쌍으로_발급한다() {
+    void issuesAccessAndRefreshTokenPair() {
         // given
         CurrentTime issuedAt = ISSUED_AT;
 
@@ -64,7 +64,7 @@ class JjwtTokenIssuerAdapterTest {
 
     @Test
     @DisplayName("Token 회전은 세션과 절대 만료를 유지하고 새 Refresh Token 식별자를 사용한다")
-    void Token_회전은_세션과_절대_만료를_유지하고_새_Refresh_Token_식별자를_사용한다() {
+    void rotatesTokenWithSessionExpirationAndNewRefreshTokenId() {
         // given
         TokenId rotatedTokenId = new TokenId("rotated-token-id");
 
@@ -88,7 +88,7 @@ class JjwtTokenIssuerAdapterTest {
 
     @Test
     @DisplayName("JJWT 타입을 Token 발급 Adapter의 공개 계약에 노출하지 않는다")
-    void JJWT_타입을_Token_발급_Adapter의_공개_계약에_노출하지_않는다() {
+    void hidesJjwtTypesFromTokenIssuerPublicContract() {
         // given
         Method[] publicMethods = JjwtTokenIssuerAdapter.class.getMethods();
 

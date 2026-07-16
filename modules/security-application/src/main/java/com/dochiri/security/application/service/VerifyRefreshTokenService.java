@@ -5,13 +5,13 @@ import com.dochiri.security.application.exception.RefreshTokenInactiveException;
 import com.dochiri.security.application.exception.RefreshTokenNotFoundException;
 import com.dochiri.security.application.exception.RefreshTokenRoleMismatchException;
 import com.dochiri.security.application.exception.RefreshTokenSubjectMismatchException;
-import com.dochiri.security.application.port.in.VerifyRefreshTokenCommand;
+import com.dochiri.security.application.port.in.VerifyRefreshTokenQuery;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenResult;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenUseCase;
 import com.dochiri.security.application.port.out.CurrentTimePort;
 import com.dochiri.security.application.port.out.DecodedRefreshToken;
 import com.dochiri.security.application.port.out.RefreshTokenVerifierPort;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.domain.model.RefreshSession;
 import com.dochiri.security.domain.model.RefreshTokenStatus;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class VerifyRefreshTokenService implements VerifyRefreshTokenUseCase {
+public final class VerifyRefreshTokenService implements VerifyRefreshTokenUseCase {
 
     private final RefreshTokenVerifierPort refreshTokenVerifierPort;
-    private final RefreshSessionRepositoryPort refreshSessionRepositoryPort;
+    private final RefreshSessionPort refreshSessionRepositoryPort;
     private final CurrentTimePort currentTimePort;
 
     @Override
     @Transactional(readOnly = true)
-    public VerifyRefreshTokenResult execute(VerifyRefreshTokenCommand command) {
-        DecodedRefreshToken decodedToken = refreshTokenVerifierPort.verifyRefresh(command.refreshToken());
+    public VerifyRefreshTokenResult execute(VerifyRefreshTokenQuery query) {
+        DecodedRefreshToken decodedToken = refreshTokenVerifierPort.verifyRefresh(query.refreshToken());
         RefreshSession storedSession = refreshSessionRepositoryPort.findByCurrentTokenId(decodedToken.tokenId())
                 .orElseThrow(() -> RefreshTokenNotFoundException.tokenNotFound(decodedToken.tokenId()));
         validateContract(storedSession, decodedToken);

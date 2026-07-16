@@ -6,7 +6,7 @@ import com.dochiri.security.application.port.in.IssueTokensResult;
 import com.dochiri.security.application.port.in.IssueTokensUseCase;
 import com.dochiri.security.application.port.out.CurrentTimePort;
 import com.dochiri.security.application.port.out.IssuedTokenPair;
-import com.dochiri.security.application.port.out.RefreshSessionRepositoryPort;
+import com.dochiri.security.application.port.out.RefreshSessionPort;
 import com.dochiri.security.application.port.out.TokenIssuerPort;
 import com.dochiri.security.application.port.out.TokenIdGeneratorPort;
 import com.dochiri.security.domain.model.CurrentTime;
@@ -19,10 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class IssueTokensService implements IssueTokensUseCase {
+public final class IssueTokensService implements IssueTokensUseCase {
 
     private final TokenIssuerPort tokenIssuerPort;
-    private final RefreshSessionRepositoryPort refreshSessionRepositoryPort;
+    private final RefreshSessionPort refreshSessionRepositoryPort;
     private final TokenIdGeneratorPort tokenIdGeneratorPort;
     private final CurrentTimePort currentTimePort;
 
