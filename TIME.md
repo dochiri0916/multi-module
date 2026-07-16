@@ -22,7 +22,7 @@ time:
 ## 자동 구성
 
 ```text
-com.dochiri.time.configuration.TimeAutoConfiguration
+com.dochiri.time.adapter.in.bootstrap.TimeAutoConfiguration
 ```
 
 기본 Bean:
@@ -37,7 +37,7 @@ Clock.system(ZoneId.of(properties.timezone()))
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-time:1.0.0'
 }
 ```
 

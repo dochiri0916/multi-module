@@ -10,7 +10,7 @@ security-domain <- security-application <- security-jpa -> jpa-auditing
 
 Application이 소유하는 계약은 다음과 같다.
 
-- `RefreshSessionRepositoryPort`: 한 `RefreshSession` Aggregate의 저장과 조회
+- `RefreshSessionPort`: 한 `RefreshSession` Aggregate의 저장과 조회
 - `RefreshSessionBulkRevocationPort`: subject 단위 전체 폐기
 - `RefreshSessionCleanupPort`: 보관 경계를 지난 세션의 제한된 batch 삭제
 
@@ -22,7 +22,7 @@ Application이 소유하는 계약은 다음과 같다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
 }
 ```
 
@@ -30,8 +30,8 @@ Adapter만 선택하려면 다음 두 artifact를 사용한다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-security-jwt-issuer:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-jwt-issuer:1.0.0'
+    implementation 'com.dochiri:dochiri-security-jpa:1.0.0'
 }
 ```
 
@@ -160,7 +160,7 @@ Domain/Application 예외는 HTTP, JPA, JJWT 타입을 포함하지 않는다. �
 
 ## 남은 확장점
 
-- 여러 인스턴스의 대규모 세션 조회가 병목이 될 때 `RefreshSessionRepositoryPort`의 Redis Adapter 검토
+- 여러 인스턴스의 대규모 세션 조회가 병목이 될 때 `RefreshSessionPort`의 Redis Adapter 검토
 - 최신 role을 rotation 시점마다 조회해야 하는 서비스는 소비 Context가 소유하는 Published Language/통합 Port 설계
 - 실제 release 전 schema 하위 호환 정책과 migration rollback/runbook 확정
 

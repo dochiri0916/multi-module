@@ -47,7 +47,7 @@ AuditorAware<String> serviceAuditor() {
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-jpa-querydsl:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa-querydsl:1.0.0'
 }
 ```
 
@@ -70,7 +70,7 @@ auditing만 사용:
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-jpa-auditing:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa-auditing:1.0.0'
     runtimeOnly 'com.mysql:mysql-connector-j'
 }
 ```
@@ -79,7 +79,7 @@ auditing과 QueryDSL을 함께 사용:
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa:1.0.0'
     runtimeOnly 'com.mysql:mysql-connector-j'
 }
 ```
@@ -97,10 +97,10 @@ dependencies {
 
 ```text
 jpa-auditing:
-  com.dochiri.jpa.configuration.JpaAuditingAutoConfiguration
+  com.dochiri.jpa.adapter.in.bootstrap.JpaAuditingAutoConfiguration
 
 jpa-querydsl:
-  com.dochiri.jpa.configuration.QueryDslAutoConfiguration
+  com.dochiri.jpa.adapter.in.bootstrap.QueryDslAutoConfiguration
 ```
 
 두 자동 구성 모두 소비자 Bean back-off를 테스트한다.

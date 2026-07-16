@@ -63,7 +63,7 @@ auth-server-starter -> api-starter + security-error-webmvc + security-jwt-issuer
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-api-starter:1.0.0'
 }
 ```
 
@@ -79,7 +79,7 @@ API Gateway는 DB 없이 Access Token만 검증합니다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-gateway-security-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-gateway-security-starter:1.0.0'
 }
 ```
 
@@ -93,7 +93,7 @@ Gateway에는 `AccessTokenVerifierPort`, JWT filter와 `SecurityFilterChain`만 
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
 }
 ```
 
@@ -114,7 +114,7 @@ auditing만 필요한 서비스는 QueryDSL 없이 사용할 수 있습니다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-jpa-auditing:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa-auditing:1.0.0'
 }
 ```
 
@@ -172,7 +172,7 @@ IssueTokensResult issued = issueTokensUseCase.execute(
 );
 
 VerifyRefreshTokenResult verified = verifyRefreshTokenUseCase.execute(
-        new VerifyRefreshTokenCommand(new EncodedToken(refreshToken))
+        new VerifyRefreshTokenQuery(new EncodedToken(refreshToken))
 );
 
 RotateTokensResult rotated = rotateTokensUseCase.execute(
@@ -307,4 +307,4 @@ PIT 기준은 Domain/Application mutation score 80%, test strength 85%입니다.
 ./gradlew publishToMavenLocal
 ```
 
-artifact 좌표는 `com.dochiri:dochiri-{module}:0.0.1-SNAPSHOT` 형식입니다.
+artifact 좌표는 `com.dochiri:dochiri-{module}:1.0.0` 형식입니다.

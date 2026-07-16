@@ -45,7 +45,7 @@ AuthenticationSubject subject = new AuthenticationSubject(memberId.value());
 | Inbound Port | 입력 | 출력 | 트랜잭션 |
 | --- | --- | --- | --- |
 | `IssueTokensUseCase` | `IssueTokensCommand` | `IssueTokensResult` | 변경 |
-| `VerifyRefreshTokenUseCase` | `VerifyRefreshTokenCommand` | `VerifyRefreshTokenResult` | 읽기 전용 |
+| `VerifyRefreshTokenUseCase` | `VerifyRefreshTokenQuery` | `VerifyRefreshTokenResult` | 읽기 전용 |
 | `RotateTokensUseCase` | `RotateTokensCommand` | `RotateTokensResult` | 변경 |
 | `RevokeRefreshTokenUseCase` | `RevokeRefreshTokenCommand` | `RevokeRefreshTokenResult` | 변경 |
 | `RevokeAllRefreshTokensUseCase` | `RevokeAllRefreshTokensCommand` | `RevokeAllRefreshTokensResult` | 변경 |
@@ -58,7 +58,7 @@ Application 계층은 다음 Outbound Port 계약을 소유한다.
 - `RefreshTokenVerifierPort`, `RefreshSessionTokenVerifierPort`
 - `TokenIdGeneratorPort`
 - `CurrentTimePort`
-- `RefreshSessionRepositoryPort`
+- `RefreshSessionPort`
 - `RefreshSessionBulkRevocationPort`
 - `RefreshSessionCleanupPort`
 
@@ -179,7 +179,7 @@ API Gateway:
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-gateway-security-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-gateway-security-starter:1.0.0'
 }
 ```
 
@@ -187,7 +187,7 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
 }
 ```
 
@@ -195,8 +195,8 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-security-jwt:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security-webmvc:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-jwt:1.0.0'
+    implementation 'com.dochiri:dochiri-security-webmvc:1.0.0'
     // 인증 서버에만 security-jwt-issuer와 security-jpa 추가
 }
 ```
