@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
-        classes = SecurityWebMvcConsumerSmokeTest.TestApplication.class,
+        classes = SecurityWebMvcConsumerSmokeTest.SecurityWebMvcApplication.class,
         properties = "jwt.secret=test-secret-key-that-is-at-least-32-characters-long"
 )
 @AutoConfigureMockMvc
@@ -55,7 +55,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("Spring Data 없이 security 집계 artifact와 Web MVC 컨텍스트를 시작한다")
-    void Spring_Data_없이_security_집계_artifact와_Web_MVC_컨텍스트를_시작한다() {
+    void startsSecurityAggregatorWithoutSpringData() {
         // given
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
@@ -74,7 +74,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("PublicApi가 선언된 endpoint는 path 설정 없이 공개한다")
-    void PublicApi가_선언된_endpoint는_path_설정_없이_공개한다() throws Exception {
+    void publicApiEndpointIsExposedWithoutPathConfiguration() throws Exception {
         // given
         String endpoint = "/api/public";
 
@@ -86,7 +86,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("보호된 요청의 인증 실패를 공통 SECURITY 오류 응답으로 반환한다")
-    void 보호된_요청의_인증_실패를_공통_SECURITY_오류_응답으로_반환한다() throws Exception {
+    void unauthenticatedProtectedRequestReturnsCommonSecurityError() throws Exception {
         // given
         String requestId = "webmvc-request-401";
 
@@ -103,7 +103,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("유효한 JWT는 문자열 subject principal로 보호 endpoint에 접근한다")
-    void 유효한_JWT는_문자열_subject_principal로_보호_endpoint에_접근한다() throws Exception {
+    void validJwtAccessesProtectedEndpointWithStringSubject() throws Exception {
         // given
         String accessToken = accessToken(new AuthenticationRole("MEMBER"));
 
@@ -115,7 +115,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("권한이 부족한 인증 요청을 공통 SECURITY 403 응답으로 반환한다")
-    void 권한이_부족한_인증_요청을_공통_SECURITY_403_응답으로_반환한다() throws Exception {
+    void insufficientRoleReturnsCommonSecurityForbiddenError() throws Exception {
         // given
         String accessToken = accessToken(new AuthenticationRole("MEMBER"));
 
@@ -131,7 +131,7 @@ class SecurityWebMvcConsumerSmokeTest {
 
     @Test
     @DisplayName("Swagger endpoint는 기본 설정에서 공개하지 않는다")
-    void Swagger_endpoint는_기본_설정에서_공개하지_않는다() throws Exception {
+    void swaggerEndpointIsNotPublicByDefault() throws Exception {
         // given
         String swaggerEndpoint = "/v3/api-docs";
 
@@ -153,12 +153,12 @@ class SecurityWebMvcConsumerSmokeTest {
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @EnableMethodSecurity
-    @Import(TestController.class)
-    static class TestApplication {
+    @Import(SecurityWebMvcController.class)
+    static class SecurityWebMvcApplication {
     }
 
     @RestController
-    static class TestController {
+    static class SecurityWebMvcController {
 
         @PublicApi
         @GetMapping("/api/public")

@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
-        classes = SwaggerPublicOptInSmokeTest.TestApplication.class,
+        classes = SwaggerPublicOptInSmokeTest.SwaggerPublicOptInApplication.class,
         properties = {
                 "jwt.secret=test-secret-key-that-is-at-least-32-characters-long",
                 "jwt.access-token-ttl=1h",
@@ -35,7 +35,7 @@ class SwaggerPublicOptInSmokeTest {
 
     @Test
     @DisplayName("Swagger endpoint는 명시적으로 opt-in한 경우에만 공개한다")
-    void Swagger_endpoint는_명시적으로_opt_in한_경우에만_공개한다() throws Exception {
+    void swaggerEndpointIsPublicWhenExplicitlyEnabled() throws Exception {
         // given
         String swaggerEndpoint = "/v3/api-docs";
 
@@ -48,7 +48,7 @@ class SwaggerPublicOptInSmokeTest {
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import(SwaggerController.class)
-    static class TestApplication {
+    static class SwaggerPublicOptInApplication {
     }
 
     @RestController

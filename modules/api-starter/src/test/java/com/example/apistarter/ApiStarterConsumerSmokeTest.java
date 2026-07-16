@@ -21,7 +21,7 @@ import java.time.Clock;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-@SpringBootTest(classes = ApiStarterConsumerSmokeTest.TestApplication.class)
+@SpringBootTest(classes = ApiStarterConsumerSmokeTest.ApiStarterApplication.class)
 class ApiStarterConsumerSmokeTest {
 
     @Container
@@ -56,7 +56,7 @@ class ApiStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("일반 API starter는 DB 정보만으로 Web과 JPA와 MySQL 기반을 시작한다")
-    void 일반_API_starter는_DB_정보만으로_Web과_JPA와_MySQL_기반을_시작한다() {
+    void startsApiStarterWithDatabaseConfiguration() {
         // given
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
@@ -81,7 +81,7 @@ class ApiStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("일반 API starter는 서비스 migration만 실행하고 인증 테이블을 만들지 않는다")
-    void 일반_API_starter는_서비스_migration만_실행하고_인증_테이블을_만들지_않는다() {
+    void runsServiceMigrationWithoutAuthenticationTable() {
         // given
         String serviceTable = "api_starter_probe";
         String authenticationTable = "refresh_sessions";
@@ -105,6 +105,6 @@ class ApiStarterConsumerSmokeTest {
     }
 
     @SpringBootApplication
-    static class TestApplication {
+    static class ApiStarterApplication {
     }
 }

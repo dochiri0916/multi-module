@@ -21,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,11 +33,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
-        classes = GatewaySecurityStarterConsumerSmokeTest.TestApplication.class,
+        classes = GatewaySecurityStarterConsumerSmokeTest.GatewaySecurityApplication.class,
         properties = "jwt.secret=test-secret-key-that-is-at-least-32-characters-long"
 )
 @AutoConfigureMockMvc
@@ -52,7 +52,7 @@ class GatewaySecurityStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("Gateway starter는 DB와 Token 발급 기능 없이 Access Token 검증만 구성한다")
-    void Gateway_starter는_DB와_Token_발급_기능_없이_Access_Token_검증만_구성한다() {
+    void configuresAccessTokenVerificationWithoutDatabaseOrIssuance() {
         // given
         ApplicationContext context = applicationContext;
 
@@ -72,7 +72,7 @@ class GatewaySecurityStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("Gateway starter는 유효한 JWT의 인증 주체를 Security Context에 저장한다")
-    void Gateway_starter는_유효한_JWT의_인증_주체를_Security_Context에_저장한다() throws Exception {
+    void storesValidJwtSubjectInSecurityContext() throws Exception {
         // given
         String accessToken = Jwts.builder()
                 .subject("gateway-member")
@@ -82,20 +82,23 @@ class GatewaySecurityStarterConsumerSmokeTest {
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
                 .compact();
 
-        // when & then
-        mockMvc.perform(get("/gateway/me").header("Authorization", "Bearer " + accessToken))
+        // when
+        MvcResult result = mockMvc.perform(get("/gateway/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subject").value("gateway-member"));
+                .andReturn();
+
+        // then
+        assertThat(result.getResponse().getContentAsString()).contains("\"subject\":\"gateway-member\"");
     }
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import(TestController.class)
-    static class TestApplication {
+    @Import(GatewaySecurityController.class)
+    static class GatewaySecurityApplication {
     }
 
     @RestController
-    static class TestController {
+    static class GatewaySecurityController {
 
         @GetMapping("/gateway/me")
         Map<String, String> me(@AuthenticationPrincipal JwtPrincipal principal) {

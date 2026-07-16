@@ -9,8 +9,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
-        classes = CustomSecurityFilterChainSmokeTest.TestApplication.class,
+        classes = CustomSecurityFilterChainSmokeTest.CustomSecurityApplication.class,
         properties = {
                 "jwt.secret=test-secret-key-that-is-at-least-32-characters-long",
                 "jwt.access-token-ttl=1h",
@@ -40,7 +41,7 @@ class CustomSecurityFilterChainSmokeTest {
 
     @Test
     @DisplayName("사용자 SecurityFilterChain이 있으면 기본 chain이 물러난다")
-    void 사용자_SecurityFilterChain이_있으면_기본_chain이_물러난다() throws Exception {
+    void customSecurityFilterChainOverridesDefault() throws Exception {
         // given
         String endpoint = "/custom-chain";
 
@@ -51,23 +52,17 @@ class CustomSecurityFilterChainSmokeTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import(CustomController.class)
-    static class TestApplication {
+    @Import(CustomSecurityController.class)
+    static class CustomSecurityApplication {
 
         @Bean
-        SecurityFilterChain customSecurityFilterChain(HttpSecurity http) {
-            try {
-                return http
-                        .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
-                        .build();
-            } catch (Exception exception) {
-                throw new IllegalStateException("소비자 SecurityFilterChain을 구성할 수 없습니다.", exception);
-            }
+        SecurityFilterChain customSecurityFilterChain() {
+            return new DefaultSecurityFilterChain(AnyRequestMatcher.INSTANCE);
         }
     }
 
     @RestController
-    static class CustomController {
+    static class CustomSecurityController {
 
         @GetMapping("/custom-chain")
         Map<String, String> endpoint() {

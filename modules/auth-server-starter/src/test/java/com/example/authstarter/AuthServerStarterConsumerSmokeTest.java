@@ -1,10 +1,10 @@
 package com.example.authstarter;
 
-import com.dochiri.errorhandling.ApiErrorCode;
-import com.dochiri.errorhandling.ApiErrorMessage;
-import com.dochiri.errorhandling.ApiErrorMessageCatalog;
-import com.dochiri.errorhandling.ApiExceptionMapper;
-import com.dochiri.errorhandling.MappedApiError;
+import com.dochiri.errorhandling.global.error.ApiErrorCode;
+import com.dochiri.errorhandling.global.error.ApiErrorMessage;
+import com.dochiri.errorhandling.global.error.ApiErrorMessageCatalog;
+import com.dochiri.errorhandling.global.error.ApiExceptionMapper;
+import com.dochiri.errorhandling.global.error.MappedApiError;
 import com.dochiri.security.application.exception.InvalidTokenException;
 import com.dochiri.security.application.exception.SecurityApplicationErrorCode;
 import com.dochiri.security.application.port.in.CleanupRefreshSessionsUseCase;
@@ -12,7 +12,7 @@ import com.dochiri.security.application.port.in.IssueTokensCommand;
 import com.dochiri.security.application.port.in.IssueTokensResult;
 import com.dochiri.security.application.port.in.IssueTokensUseCase;
 import com.dochiri.security.application.port.in.RotateTokensUseCase;
-import com.dochiri.security.application.port.in.VerifyRefreshTokenCommand;
+import com.dochiri.security.application.port.in.VerifyRefreshTokenQuery;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenResult;
 import com.dochiri.security.application.port.in.VerifyRefreshTokenUseCase;
 import com.dochiri.security.application.port.out.AccessTokenVerifierPort;
@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @SpringBootTest(
-        classes = AuthServerStarterConsumerSmokeTest.TestApplication.class,
+        classes = AuthServerStarterConsumerSmokeTest.AuthServerApplication.class,
         properties = "jwt.secret=test-secret-key-that-is-at-least-32-characters-long"
 )
 class AuthServerStarterConsumerSmokeTest {
@@ -67,7 +67,7 @@ class AuthServerStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("인증 서버 starter는 발급과 Refresh Session 기능만 구성하고 Access Token은 검증하지 않는다")
-    void 인증_서버_starter는_발급과_Refresh_Session_기능만_구성하고_Access_Token은_검증하지_않는다() {
+    void configuresIssuanceAndRefreshWithoutAccessTokenVerification() {
         // given
         ApplicationContext context = applicationContext;
 
@@ -88,7 +88,7 @@ class AuthServerStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("인증 서버 starter는 발급한 Refresh Token과 Session을 인증 DB에 저장한다")
-    void 인증_서버_starter는_발급한_Refresh_Token과_Session을_인증_DB에_저장한다() {
+    void persistsIssuedRefreshTokenAndSession() {
         // given
         IssueTokensUseCase issuer = applicationContext.getBean(IssueTokensUseCase.class);
         VerifyRefreshTokenUseCase verifier = applicationContext.getBean(VerifyRefreshTokenUseCase.class);
@@ -98,7 +98,7 @@ class AuthServerStarterConsumerSmokeTest {
                 new IssueTokensCommand(SUBJECT, new AuthenticationRole("MEMBER"))
         );
         VerifyRefreshTokenResult verified = verifier.execute(
-                new VerifyRefreshTokenCommand(issued.refreshToken())
+                new VerifyRefreshTokenQuery(issued.refreshToken())
         );
 
         // then
@@ -112,7 +112,7 @@ class AuthServerStarterConsumerSmokeTest {
 
     @Test
     @DisplayName("인증 서버 starter는 Refresh Token 오류를 공통 API 오류 계약으로 변환한다")
-    void 인증_서버_starter는_Refresh_Token_오류를_공통_API_오류_계약으로_변환한다() {
+    void mapsRefreshTokenFailureToCommonApiError() {
         // given
         ApiExceptionMapper exceptionMapper = applicationContext.getBean(ApiExceptionMapper.class);
         ApiErrorMessageCatalog messageCatalog = applicationContext.getBean(ApiErrorMessageCatalog.class);
@@ -129,6 +129,6 @@ class AuthServerStarterConsumerSmokeTest {
     }
 
     @SpringBootApplication
-    static class TestApplication {
+    static class AuthServerApplication {
     }
 }
