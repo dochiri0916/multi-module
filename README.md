@@ -1,566 +1,310 @@
-# multi-module
+# Dochiri Multi-Module Library
 
-Spring Boot 4 기반 공통 라이브러리 레포입니다. 이 레포는 실행 애플리케이션이 아니라, 모놀리식 애플리케이션과 MSA 서비스에서 재사용할 모듈 artifact를 관리합니다.
+Java 21과 Spring Boot 4 기반 API 서비스에서 재사용할 보안, 오류 응답, JPA, 시간 설정을 제공하는 멀티 모듈 라이브러리입니다. refresh token 영역은 Hexagonal Architecture와 DDD 경계로 나뉘며, 기술 모듈은 필요한 artifact만 선택할 수 있습니다.
 
-소비 프로젝트는 필요한 모듈만 선택해서 의존합니다.
+## 요구 사항
 
-## 제공 모듈
+- Java 21 이상이 필요합니다.
+- Gradle Wrapper 9.3.1을 사용합니다.
+- Spring Boot 4.0.3 dependency BOM을 사용합니다.
+- `security-jpa` 사용 시 MySQL 8.4 이상이 필요합니다. Connector/J은 starter가 제공합니다.
 
-| 구분 | artifactId | 역할 |
+## 모듈
+
+| artifactId | Gradle project | 책임 |
 | --- | --- | --- |
-| 모듈 | artifactId | 역할 |
-| --- | --- | --- |
-| error-handling | `dochiri-error-handling` | `BaseException`, `ErrorCode`, `GlobalExceptionHandler`, validation error response |
-| time | `dochiri-time` | `Clock`, `time.timezone` 설정 |
-| jpa | `dochiri-jpa` | `BaseEntity`, JPA Auditing, `JPAQueryFactory` |
-| security | `dochiri-security` | JWT 발급/검증, 기본 `SecurityFilterChain`, CORS, Auditing 연동 |
-| security-jpa | `dochiri-security-jpa` | refresh token persistence (`RefreshToken`, `RefreshTokenRepository`, `RefreshTokenService`), `User` 엔티티는 제공하지 않음 |
+| `dochiri-security-domain` | `modules:security-domain` | refresh session Aggregate와 보안 Value Object 및 Domain 예외 |
+| `dochiri-security-application` | `modules:security-application` | 발급·검증·회전·폐기·정리 UseCase와 Inbound/Outbound Port |
+| `dochiri-security-error-webmvc` | `modules:security-error-webmvc` | 필터와 분리된 보안 Application 예외·401/403 API 오류 catalog |
+| `dochiri-security-jwt` | `modules:security-jwt` | Gateway용 JJWT `AccessTokenVerifierPort` Adapter |
+| `dochiri-security-jwt-issuer` | `modules:security-jwt-issuer` | 인증 서버용 JWT 발급·회전·refresh 검증·시간·식별자 Adapter |
+| `dochiri-security-webmvc` | `modules:security-webmvc` | JWT 인증 필터, `@PublicApi`, 보안 설정, 공통 401/403 응답 |
+| `dochiri-security-jpa` | `modules:security-jpa` | MySQL refresh session JPA Adapter, Flyway migration, Security auditing |
+| `dochiri-security` | `modules:security` | JWT와 Web MVC를 묶는 JPA 없는 호환 aggregator |
+| `dochiri-jpa-auditing` | `modules:jpa-auditing` | `BaseEntity`, JPA auditing과 fallback auditor |
+| `dochiri-jpa-querydsl` | `modules:jpa-querydsl` | `JPAQueryFactory` 자동 구성 |
+| `dochiri-jpa` | `modules:jpa` | auditing과 QueryDSL을 묶는 호환 aggregator |
+| `dochiri-error-handling` | `modules:error-handling` | RFC 9457 Web MVC 오류 mapper/catalog/factory/handler |
+| `dochiri-time` | `modules:time` | 교체 가능한 `Clock`과 timezone 설정 |
+| `dochiri-api-starter` | `modules:api-starter` | JWT 없는 일반 서비스용 Web/JPA/MySQL/Flyway aggregator |
+| `dochiri-gateway-security-starter` | `modules:gateway-security-starter` | DB 없는 Gateway용 Access Token 검증 aggregator |
+| `dochiri-auth-server-starter` | `modules:auth-server-starter` | 인증 서버용 JWT 발급·refresh session·MySQL aggregator |
 
-`dochiri-security-jpa`는 `dochiri-security`, `dochiri-jpa`에 의존합니다. refresh token 저장 기능까지 필요하면 `dochiri-security-jpa`를 의존하고, JWT만 필요하면 `dochiri-security`만 의존합니다.
+`security`와 `jpa`는 기존 artifact 사용자를 위한 편의 aggregator입니다. 선택성을 우선하면 분리된 artifact를 직접 사용합니다.
 
-## 기본 사용 흐름
+## 의존 방향
 
-1. 이 레포에서 테스트합니다.
+```text
+security-domain
+      ^
+security-application
+      ^
+      +-- security-jwt          (Access Token 검증)
+      +-- security-jwt-issuer   (발급·Refresh Token 검증)
+      +-- security-jpa ------> jpa-auditing
+      +-- security-error-webmvc ---> error-handling
+      +-- security-webmvc --------> security-error-webmvc
 
-```bash
-./gradlew clean test
+security     -> security-jwt + security-webmvc
+jpa          -> jpa-auditing + jpa-querydsl
+api-starter  -> error-handling + jpa + time + Web MVC + MySQL/Flyway
+gateway-security-starter -> security-jwt + security-webmvc + error-handling + time
+auth-server-starter -> api-starter + security-error-webmvc + security-jwt-issuer + security-jpa
 ```
 
-2. 이 레포를 로컬 Maven 저장소에 배포합니다.
+- Domain은 Spring, JPA, Lombok, Adapter를 알지 못합니다.
+- Application은 같은 Domain과 자신이 소유한 Port만 사용하며, 실용적 예외로 `@Service`와 메서드 단위 `@Transactional`만 사용합니다.
+- JJWT `Claims`, Spring Data repository, JPA Entity는 Adapter 밖으로 노출하지 않습니다.
+- 인증 주체는 DB 기술 키가 아닌 `AuthenticationSubject(String)`으로 표현합니다.
+
+## MSA 빠른 시작
+
+일반 서비스는 JWT를 알지 않고 자기 DB만 설정합니다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-api-starter:0.0.1-SNAPSHOT'
+}
+```
+
+```bash
+export SPRING_DATASOURCE_URL='jdbc:mysql://order-db:3306/orders?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true'
+export SPRING_DATASOURCE_USERNAME='order_app'
+export SPRING_DATASOURCE_PASSWORD='secret'
+```
+
+이것으로 WebMVC, 오류 처리, JPA auditing/QueryDSL, Connector/J, Flyway, `Clock`이 연결됩니다. JWT 모듈과 `refresh_sessions` migration은 classpath에 들어오지 않습니다.
+
+API Gateway는 DB 없이 Access Token만 검증합니다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-gateway-security-starter:0.0.1-SNAPSHOT'
+}
+```
+
+```bash
+export JWT_SECRET='32자 이상의 운영 비밀키'
+```
+
+Gateway에는 `AccessTokenVerifierPort`, JWT filter와 `SecurityFilterChain`만 구성됩니다. 토큰 발급·refresh 검증 Port, token ID generator, DataSource는 구성되지 않습니다.
+
+인증 서비스만 JWT 발급과 refresh session DB를 사용합니다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+}
+```
+
+```bash
+export JWT_SECRET='Gateway와 공유하는 32자 이상의 운영 비밀키'
+export SPRING_DATASOURCE_URL='jdbc:mysql://auth-db:3306/auth?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true'
+export SPRING_DATASOURCE_USERNAME='auth_app'
+export SPRING_DATASOURCE_PASSWORD='secret'
+```
+
+인증 서비스에는 발급·refresh 검증·회전·폐기·cleanup UseCase, 보안 Application 예외의 RFC 9457 매핑과 `refresh_sessions` migration이 연결되지만 Access Token 검증 filter는 들어오지 않습니다. 현재 HMAC 방식에서는 Gateway와 인증 서비스만 같은 secret을 사용하며 일반 서비스에는 secret을 배포하지 않습니다.
+
+각 서비스는 같은 datasource property 이름에 서로 다른 URL과 DB 계정을 제공합니다. Spring Boot가 환경 변수를 직접 바인딩하므로 세 역할 모두 `application.yml`, 별도 `@Import`, scan 설정이나 Bean 조립이 필수가 아닙니다.
+
+Gateway starter는 검증 결과를 `JwtPrincipal`로 Security Context에 저장합니다. 실제 downstream 전달은 사용하는 Gateway route 기술이 소유합니다. route filter는 외부 요청의 subject/role 헤더를 먼저 제거하고 검증된 값만 다시 넣어야 하며, 일반 서비스는 외부에서 직접 접근할 수 없도록 네트워크 정책이나 mTLS로 보호합니다. 주문 소유권 같은 도메인 권한 판단은 일반 서비스에 남깁니다.
+
+auditing만 필요한 서비스는 QueryDSL 없이 사용할 수 있습니다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-jpa-auditing:0.0.1-SNAPSHOT'
+}
+```
+
+## 선택 설정
+
+인증 서버의 access token TTL 1시간과 refresh token TTL 7일, 모든 서비스의 timezone `Asia/Seoul`, Gateway의 Swagger 비공개, 인증 DB의 system auditor `system`이 기본값입니다. 다른 정책이 필요할 때만 설정합니다.
+
+```yaml
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-ttl: 1h
+  refresh-token-ttl: 7d
+
+security:
+  swagger-public: false
+  audit:
+    system-subject: system
+
+cors:
+  allowed-origins:
+    - https://app.example.com
+
+time:
+  timezone: Asia/Seoul
+
+dochiri:
+  jpa:
+    audit:
+      system-subject: system
+```
+
+| property | 기본값 | 설명 |
+| --- | --- | --- |
+| `jwt.secret` | 없음 | 최소 32자의 HMAC secret. JWT Adapter 활성화 시 필수 |
+| `jwt.access-token-ttl` | `1h` | 양수 `Duration` |
+| `jwt.refresh-token-ttl` | `7d` | 양수 `Duration` |
+| `security.swagger-public` | `false` | Swagger 경로 공개 여부 |
+| `security.audit.system-subject` | `system` | Security Context가 없을 때 security-jpa 감사자 |
+| `cors.allowed-origins` | 빈 목록 | 허용 origin. `*`이면 credentials는 자동 비활성화 |
+| `time.timezone` | `Asia/Seoul` | 기본 `Clock`의 Zone ID |
+| `dochiri.jpa.audit.system-subject` | `system` | 일반 JPA auditing fallback 감사자 |
+
+소비자가 같은 타입의 Bean을 제공하면 기본 `Clock`, `AccessTokenVerifierPort`, `TokenIssuerPort`, refresh verifier, token ID generator, 보안 handler, `SecurityFilterChain`, `CorsConfigurationSource`, `AuditorAware`, `JPAQueryFactory`는 물러납니다.
+
+## 보안 UseCase
+
+발급, 검증, 회전, 단건 폐기, 전체 폐기는 각각 하나의 Inbound Port입니다. 기존 발급·검증·폐기 API는 유지되며 rotation은 추가 계약입니다.
+
+```java
+IssueTokensResult issued = issueTokensUseCase.execute(
+        new IssueTokensCommand(
+                new AuthenticationSubject(memberId),
+                new AuthenticationRole("MEMBER")
+        )
+);
+
+VerifyRefreshTokenResult verified = verifyRefreshTokenUseCase.execute(
+        new VerifyRefreshTokenCommand(new EncodedToken(refreshToken))
+);
+
+RotateTokensResult rotated = rotateTokensUseCase.execute(
+        new RotateTokensCommand(new EncodedToken(refreshToken))
+);
+
+RevokeRefreshTokenResult revoked = revokeRefreshTokenUseCase.execute(
+        new RevokeRefreshTokenCommand(new EncodedToken(refreshToken))
+);
+
+RevokeAllRefreshTokensResult allRevoked = revokeAllRefreshTokensUseCase.execute(
+        new RevokeAllRefreshTokensCommand(new AuthenticationSubject(memberId))
+);
+```
+
+동일한 refresh token으로 동시에 rotation하면 한 요청만 성공합니다. 이미 교체된 token이 다시 제출되면 replay로 판단해 세션 전체를 폐기하므로, 클라이언트는 refresh 요청을 single-flight로 묶어야 합니다. role은 세션 발급 시점의 snapshot이며 권한 변경 시 소비 애플리케이션이 `RevokeAllRefreshTokensUseCase`를 호출합니다.
+
+Controller는 구체 Service나 Repository가 아니라 `*UseCase`만 호출합니다. 소비 Context의 `MemberId`와 `AuthenticationSubject` 변환도 소비 Web/Application 경계에서 명시합니다.
+
+## 공개 API와 인증 principal
+
+공개 endpoint는 path 문자열 목록 대신 handler metadata로 선언합니다.
+
+```java
+@PublicApi
+@PostMapping("/api/auth/login")
+LoginResponse login(@RequestBody LoginRequest request) {
+    // 소비 Application UseCase 호출
+}
+```
+
+`@PublicApi`는 class 또는 method에 선언할 수 있습니다. Swagger endpoint는 `security.swagger-public=true`일 때만 공개됩니다.
+
+인증된 요청의 principal은 문자열 subject와 role을 가집니다.
+
+```java
+@GetMapping("/api/me")
+MeResponse me(@AuthenticationPrincipal JwtPrincipal principal) {
+    return new MeResponse(principal.subject().value(), principal.role().value());
+}
+```
+
+## 오류 응답
+
+Domain/Application 예외는 Spring Web을 모르는 plain unchecked exception입니다. 각 소비 Context의 Web Adapter가 `ErrorCodeMappingProvider`와 `ApiErrorMessageProvider`를 등록하면 공통 handler가 RFC 9457 응답으로 변환합니다.
+
+```json
+{
+  "type": "/problems/unauthorized",
+  "title": "인증 필요",
+  "status": 401,
+  "detail": "인증이 필요합니다.",
+  "instance": "/api/me",
+  "code": "SECURITY.AUTHENTICATION_REQUIRED",
+  "traceId": "request-id"
+}
+```
+
+Validation 오류는 `field`, 안전한 `reason`, `messageCode`만 제공하며 rejected value, 비밀번호, token 원문을 응답이나 로그에 포함하지 않습니다. 자세한 확장 방법은 [ERROR_HANDLING.md](ERROR_HANDLING.md)를 참고하시기 바랍니다.
+
+## MySQL refresh session migration
+
+`security-jpa`는 다음 versioned migration을 소유합니다.
+
+```text
+classpath:db/migration/dochiri-security/V20260715160000__create_refresh_sessions.sql
+```
+
+`refresh_sessions`는 다음 계약을 가집니다.
+
+- DB 기술 키 `id`와 locking용 `version`은 외부에 노출하지 않습니다.
+- 안정적인 `session_id`, 현재 유효한 `current_token_id`, subject와 role snapshot을 저장합니다.
+- 문자열 식별자는 대소문자를 구분하는 `ascii_bin` 또는 `utf8mb4_0900_bin` collation을 사용합니다.
+- session/token unique 제약과 전체 폐기·만료 정리에 필요한 index를 제공합니다.
+- JPA 객체 연관관계 없이 Aggregate 식별 값만 저장합니다.
+
+`security-jpa`와 `auth-server-starter`만 Flyway 보안 migration을 제공합니다. 일반 `api-starter`는 소비 서비스가 소유한 `db/migration`만 실행합니다. 운영에서는 `spring.jpa.hibernate.ddl-auto=validate`, JDBC session timezone UTC를 권장하며 Hibernate로 schema를 생성하지 않습니다.
+
+정리 스케줄은 소비 애플리케이션이 소유합니다. 보관 기준과 batch 크기(1~1000)를 전달하면 한 batch만 삭제하고, 더 호출할 가능성을 결과로 알려줍니다.
+
+```java
+CleanupRefreshSessionsResult cleanup = cleanupRefreshSessionsUseCase.execute(
+        new CleanupRefreshSessionsCommand(
+                new CurrentTime(expiredRetentionCutoff),
+                new RevokedAt(revokedRetentionCutoff),
+                500
+        )
+);
+```
+
+구체적인 datasource와 운영 정책은 [SECURITY_JPA.md](SECURITY_JPA.md)를 참고하시기 바랍니다.
+
+## 품질 게이트
+
+```bash
+./gradlew check
+./gradlew check -PchangedCoverageBaseRef=origin/main
+./gradlew :modules:security-domain:pitest :modules:security-application:pitest
+```
+
+`check`는 다음을 포함합니다.
+
+- 전체 단위·통합·소비자 조합 테스트
+- JPA 없는 `security + WebMVC` 기동 스모크 테스트
+- JWT가 없는 `api-starter`, DB가 없는 `gateway-security-starter`, 인증 DB를 소유하는 `auth-server-starter` 소비자 스모크 테스트
+- Checkstyle, PMD, SpotBugs
+- 계층 및 모듈 의존 방향 검증
+- 한국어 `@DisplayName`과 given/when/then 테스트 규칙
+- Domain 95/90, Application 90/85, Adapter 80/70, 전체 85/80 line/branch coverage
+- 선택 시 변경 production 코드 90/85 line/branch coverage
+
+PIT 기준은 Domain/Application mutation score 80%, test strength 85%입니다. GitHub Actions는 변경 커버리지와 PIT까지 실행합니다.
+
+## 호환성 변경
+
+이번 구조 개편으로 다음 API는 제거되었습니다.
+
+- Web 결합형 `BaseException`, `ErrorCode`, `CommonErrorCode`, `ProblemDetails`
+- `Long userId` 기반 보안 API
+- JJWT `Claims`를 반환하던 public API
+- JPA Entity와 Spring Data Repository를 직접 노출하던 refresh token API
+- path 목록 기반 `security.public-endpoints`
+- millisecond 기반 `jwt.access-expiration`, `jwt.refresh-expiration`
+
+새 코드는 `AuthenticationSubject`, `*UseCase`, 역할별 token Port, Context error provider, `Duration` 설정을 사용합니다.
+
+## 로컬 publishing
+
+모든 모듈은 `java-library`와 `maven-publish`를 사용합니다.
 
 ```bash
 ./gradlew publishToMavenLocal
 ```
 
-3. 별도 Spring Boot 프로젝트에서 `mavenLocal()`로 필요한 `dochiri-*` 모듈을 의존받습니다.
-4. 소비 프로젝트를 `bootRun`으로 기동해서 실제 계약을 확인합니다.
-
-이 레포 자체는 `bootRun` 대상이 아닙니다.
-
-## 소비 프로젝트 시작 방법
-
-가장 단순한 개인 로컬 소비 프로젝트 기준입니다.
-
-`start.spring.io`에서는 최소로 아래 정도만 받아도 됩니다.
-
-- `H2 Database`
-
-그 다음 이 레포에서 먼저 `./gradlew publishToMavenLocal`을 실행한 뒤, 소비 프로젝트 `build.gradle`에 로컬 Maven과 필요한 모듈을 추가합니다.
-
-```gradle
-plugins {
-    id 'java'
-    id 'org.springframework.boot' version '4.0.3'
-    id 'io.spring.dependency-management' version '1.1.7'
-}
-
-group = 'com.example'
-version = '0.0.1-SNAPSHOT'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
-
-    runtimeOnly 'com.h2database:h2'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
-}
-```
-
-중요한 점:
-
-- `mavenLocal()`이 없으면 로컬 publish artifact를 찾지 못합니다.
-- 이 레포에서 코드나 버전을 바꾸셨다면 다시 `./gradlew publishToMavenLocal`을 실행하셔야 합니다.
-- 공통 모듈은 Spring Boot starter 자체를 대체하지 않습니다. Web MVC, validation, DB driver, Swagger 같은 애플리케이션 의존성은 소비 프로젝트가 직접 선택합니다.
-- DB 드라이버는 소비 프로젝트에서 직접 선택해서 추가하셔야 합니다. 예시에서는 H2를 사용합니다.
-
-## 모듈 조합 예시
-
-기본 Web API:
-
-```gradle
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-}
-```
-
-JPA 포함 API:
-
-```gradle
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
-}
-```
-
-JWT와 refresh token 저장 포함 API:
-
-```gradle
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'com.dochiri:dochiri-error-handling:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-time:0.0.1-SNAPSHOT'
-    implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
-}
-```
-
-사용자 도메인 자체는 포함하지 않습니다. `User`, `Member`, `Account` 같은 엔티티와 repository는 소비 프로젝트가 직접 가져야 합니다.
-
-## 필수 설정
-
-소비 프로젝트의 `application.yml` 예시:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    open-in-view: false
-
-time:
-  timezone: Asia/Seoul
-jwt:
-  secret: test-secret-key-that-is-at-least-32-characters-long
-  access-expiration: 3600000
-  refresh-expiration: 604800000
-
-cors:
-  allowed-origins:
-    - http://localhost:3000
-
-security:
-  public-endpoints:
-    - /api/public/**
-    - /api/auth/**
-  system-user-id: 0
-```
-
-주의:
-
-- `time`, `jwt`, `cors`, `security`는 `spring:` 아래가 아니라 최상위 prefix입니다.
-- `jwt.secret`은 32자 이상이어야 합니다.
-- JPA auditing 기본 사용자 값은 `security.system-user-id`를 사용하며, 엔티티에는 문자열로 저장됩니다. 이전 키인 `dochiri.jpa.audit.system-user-id`도 하위 호환으로 읽습니다.
-- Swagger 경로인 `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`은 기본 공개 경로에 포함되므로 따로 추가하지 않으셔도 됩니다.
-
-## 모듈 기능
-
-### 시간
-
-- 시스템 timestamp는 기본적으로 `Instant`를 사용합니다.
-- 사용자에게 한국 시간으로 보여줄 필요가 있으면 `Asia/Seoul`로 변환해서 사용합니다.
-- `Clock`은 자동 등록됩니다.
-
-```java
-@RestController
-class TimeApi {
-
-    private final Clock clock;
-
-    TimeApi(Clock clock) {
-        this.clock = clock;
-    }
-
-    @GetMapping("/api/public/ping")
-    Map<String, Object> ping() {
-        return Map.of("now", Instant.now(clock));
-    }
-}
-```
-
-### 예외 처리
-
-에러 코드를 정의합니다.
-
-```java
-public enum UserErrorCode implements ErrorCode {
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.");
-
-    private final HttpStatus httpStatus;
-    private final String message;
-
-    UserErrorCode(HttpStatus httpStatus, String message) {
-        this.httpStatus = httpStatus;
-        this.message = message;
-    }
-
-    @Override
-    public HttpStatus getHttpStatus() {
-        return httpStatus;
-    }
-
-    @Override
-    public String getMessage() {
-        return message;
-    }
-}
-```
-
-예외를 던집니다.
-
-```java
-throw new BaseException(UserErrorCode.USER_NOT_FOUND);
-throw BaseException.of(UserErrorCode.USER_NOT_FOUND, "userId", userId);
-```
-
-전역 예외 처리는 소비 프로젝트에서 직접 등록합니다.
-
-```java
-@RestControllerAdvice
-public class ApiExceptionHandler extends GlobalExceptionHandler {
-}
-```
-
-응답 예시:
-
-```json
-{
-  "type": "/errors/user-not-found",
-  "title": "USER_NOT_FOUND",
-  "status": 404,
-  "detail": "사용자를 찾을 수 없습니다.",
-  "instance": "/api/users/1",
-  "code": "USER_NOT_FOUND",
-  "userId": 1
-}
-```
-
-`ErrorCode`는 기존 `getHttpStatus()`를 유지하면서 `getStatusCode()` default method를 제공합니다.
-신규 내부 구현은 `HttpStatusCode` 기반 API를 사용합니다.
-
-### Validation
-
-소비 프로젝트가 `spring-boot-starter-validation`과 `dochiri-error-handling`을 함께 의존하면 사용할 수 있습니다.
-
-```java
-public record CreatePostRequest(
-        @NotBlank String title
-) {
-}
-
-@PostMapping("/api/public/posts")
-void create(@Valid @RequestBody CreatePostRequest request) {
-}
-```
-
-validation 실패 응답 예시:
-
-```json
-{
-  "type": "/errors/validation-error",
-  "title": "VALIDATION_ERROR",
-  "status": 400,
-  "detail": "요청 값이 올바르지 않습니다.",
-  "instance": "/api/public/posts",
-  "code": "VALIDATION_ERROR",
-  "fieldErrors": [
-    {
-      "field": "title",
-      "rejectedValue": "",
-      "reason": "must not be blank",
-      "messageCode": "NotBlank"
-    }
-  ]
-}
-```
-
-### Swagger
-
-Swagger/OpenAPI는 현재 공통 모듈에서 제공하지 않습니다. 필요한 서비스가 직접 `springdoc-openapi-starter-webmvc-ui` 같은 의존성을 선택해서 추가합니다.
-
-### JPA
-
-엔티티는 `BaseEntity`를 상속하고, 식별자는 엔티티가 직접 선언합니다.
-
-```java
-@Entity
-public class Post extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    private String title;
-
-    protected Post() {
-    }
-
-    public Post(String title) {
-        this.title = title;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-}
-```
-
-특징:
-
-- `BaseEntity`는 `createdAt`, `updatedAt`, `createdBy`, `updatedBy`만 제공합니다.
-- 식별자 필드와 생성 전략은 각 엔티티가 직접 정합니다.
-- `createdBy`, `updatedBy`는 `String`
-- `JpaRepository.delete*` 계열 메서드는 기본 JPA 동작대로 물리 삭제합니다.
-- `JPAQueryFactory`는 자동 등록됩니다.
-- 미인증 요청은 `security.system-user-id`를 문자열 감사자 값으로 사용합니다.
-
-soft delete는 공통 모듈이 강제하지 않습니다.
-필요하시면 소비 프로젝트에서 엔티티 필드, 조회 조건, 삭제 정책을 직접 정의하시는 편이 맞습니다.
-
-Querydsl 사용:
-
-`JPAQueryFactory` 빈은 자동 등록되지만, Q 클래스 생성용 annotation processor는 소비 프로젝트에서 직접 추가하셔야 합니다.
-이 설정은 transitive dependency로 전달되지 않습니다.
-
-소비 프로젝트 `build.gradle` 예시:
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
-
-    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
-    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
-    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
-}
-```
-
-사용 예시:
-
-```java
-@Repository
-class PostQueryRepository {
-
-    private final JPAQueryFactory queryFactory;
-
-    PostQueryRepository(JPAQueryFactory queryFactory) {
-        this.queryFactory = queryFactory;
-    }
-
-    List<Post> findRecent() {
-        QPost post = QPost.post;
-
-        return queryFactory
-                .selectFrom(post)
-                .orderBy(post.createdAt.desc())
-                .fetch();
-    }
-}
-```
-
-### Security
-
-기본 사용 경로는 `RefreshTokenService`로 access/refresh token을 함께 발급하고 refresh token을 DB에 저장하는 방식입니다.
-
-중요한 계약:
-
-- `dochiri-security-jpa`는 `User` 엔티티를 제공하지 않습니다.
-- 사용자 도메인 모델과 로그인 비즈니스는 소비 프로젝트가 직접 정의합니다.
-- `security-jpa`는 `refresh_tokens` 테이블과 `userId` 기반 refresh token 저장만 담당합니다.
-- 따라서 `RefreshToken`은 `@ManyToOne User` 연관관계 대신 `Long userId`만 저장합니다.
-- refresh token은 삭제보다 폐기 개념을 사용하므로 `deletedAt`이 아니라 `revokedAt`을 가집니다.
-- 즉 refresh token 레코드는 남겨 두고, 더 이상 사용할 수 없게 된 시점을 `revokedAt`으로 기록합니다.
-
-```java
-@Service
-class AuthService {
-
-    private final RefreshTokenService refreshTokenService;
-
-    AuthService(RefreshTokenService refreshTokenService) {
-        this.refreshTokenService = refreshTokenService;
-    }
-
-    JwtTokenResult login(Long userId, String role) {
-        return refreshTokenService.generateToken(userId, role);
-    }
-}
-```
-
-refresh token 재발급 예시입니다.
-
-```java
-@Service
-class TokenRefreshService {
-
-    private final RefreshTokenService refreshTokenService;
-    private final UserRepository userRepository;
-
-    TokenRefreshService(
-            RefreshTokenService refreshTokenService,
-            UserRepository userRepository
-    ) {
-        this.refreshTokenService = refreshTokenService;
-        this.userRepository = userRepository;
-    }
-
-    JwtTokenResult refresh(String refreshToken) {
-        Long userId = refreshTokenService.verifyAndExtractUserId(refreshToken);
-        User user = userRepository.findById(userId).orElseThrow();
-
-        refreshTokenService.revoke(refreshToken);
-        return refreshTokenService.generateToken(user.getId(), user.getRole());
-    }
-}
-```
-
-로그아웃 예시입니다.
-
-```java
-@Service
-class LogoutService {
-
-    private final RefreshTokenService refreshTokenService;
-
-    LogoutService(RefreshTokenService refreshTokenService) {
-        this.refreshTokenService = refreshTokenService;
-    }
-
-    void logout(String refreshToken) {
-        refreshTokenService.revoke(refreshToken);
-    }
-}
-```
-
-전체 로그아웃 예시입니다.
-
-```java
-@Service
-class LogoutAllService {
-
-    private final RefreshTokenService refreshTokenService;
-
-    LogoutAllService(RefreshTokenService refreshTokenService) {
-        this.refreshTokenService = refreshTokenService;
-    }
-
-    int logoutAll(Long userId) {
-        return refreshTokenService.revokeAllByUserId(userId);
-    }
-}
-```
-
-인증 사용자 조회 예시입니다.
-
-```java
-@GetMapping("/api/me")
-Map<String, Object> me(@AuthenticationPrincipal JwtPrincipal principal) {
-    return Map.of(
-            "userId", principal.userId(),
-            "role", principal.role()
-    );
-}
-```
-
-`JwtTokenResult`는 아래 값을 반환합니다.
-
-- `accessToken`
-- `refreshToken`
-- `refreshTokenExpiresAt`
-
-`refreshTokenExpiresAt`은 `Instant`입니다.
-
-`dochiri-security-jpa`에는 아래 항목이 포함됩니다.
-
-- `RefreshToken` 엔티티
-- `RefreshTokenRepository`
-- `RefreshTokenService`
-
-즉 서버가 refresh token을 DB에 기억하는 구조를 바로 사용하실 수 있습니다. 기본 테이블 이름은 `refresh_tokens`입니다.
-기본 컬럼 의미는 아래와 같습니다.
-
-- `user_id`: refresh token 소유 사용자 식별자
-- `token_id`: JWT `jti`
-- `expires_at`: refresh token 만료 시각
-- `revoked_at`: refresh token 폐기 시각입니다. `null`이면 아직 폐기되지 않은 상태입니다.
-
-`revokedAt`을 쓰는 이유는 아래와 같습니다.
-
-- 로그아웃, 재발급, 강제 만료 같은 무효화 시점을 기록할 수 있습니다.
-- refresh token 레코드를 바로 지우지 않아도 "왜 더 이상 못 쓰는지"를 표현할 수 있습니다.
-- 나중에 만료되거나 오래된 폐기 토큰을 별도 배치로 물리 삭제하는 것도 가능합니다.
-
-대신 아래 항목은 포함되지 않습니다.
-
-- `User` 엔티티
-- `UserRepository`
-- 로그인/회원가입/사용자 조회 같은 사용자 도메인 로직
-
-stateless 방식이 필요하시면 `JwtTokenGenerator`, `RefreshTokenVerifier`를 직접 사용하셔도 됩니다.
-
-공개 경로는 아래 설정으로 제어합니다.
-
-```yaml
-security:
-  public-endpoints:
-    - /api/public/**
-    - /api/auth/**
-```
-
-`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`은 기본 공개 경로에 항상 포함됩니다.
-이 외 경로는 기본적으로 인증이 필요합니다.
-
-401 응답 예시:
-
-```json
-{
-  "type": "/errors/unauthorized",
-  "title": "UNAUTHORIZED",
-  "status": 401,
-  "detail": "인증이 필요합니다.",
-  "instance": "/api/me"
-}
-```
-
-## 소비 프로젝트 검증 체크리스트
-
-실제 개인 소비 프로젝트에서는 최소 아래 항목을 확인해 보시기를 권장합니다.
-
-1. `./gradlew bootRun`으로 앱 기동
-2. 공개 엔드포인트에서 `Clock` 주입 확인
-3. `BaseException` 응답 확인
-4. `BaseEntity` 저장 후 `createdAt`, `createdBy` 확인
-5. JWT 발급 확인
-6. Swagger를 직접 추가했다면 `/swagger-ui.html`, `/v3/api-docs` 접근 확인
-7. security 모듈을 사용한다면 `Authorization: Bearer <token>`으로 보호 엔드포인트 접근 확인
-
-실제 검증 예시:
-
-```bash
-curl http://localhost:8080/api/public/ping
-curl http://localhost:8080/api/public/error
-curl -X POST http://localhost:8080/api/public/posts -H 'Content-Type: application/json' -d '{"title":"hello"}'
-curl -X POST http://localhost:8080/api/auth/token
-curl http://localhost:8080/api/me -H 'Authorization: Bearer <accessToken>'
-```
+artifact 좌표는 `com.dochiri:dochiri-{module}:0.0.1-SNAPSHOT` 형식입니다.

@@ -1,207 +1,175 @@
 # Security JPA Module
 
-`modules:security-jpa`는 refresh token을 DB에 저장하고 검증/폐기하는 기능을 제공하는 모듈이다.
+`modules:security-jpa`는 refresh session 영속성 Port와 Security Context 기반 JPA auditing을 구현하는 MySQL outbound Adapter다. JWT SDK, 소비 Context의 사용자 Domain, `User` Entity를 알지 못한다.
 
-`User` 엔티티나 사용자 도메인은 제공하지 않고, refresh token 소유자를 `userId` 값으로만 저장한다.
+## 의존 방향
 
-## 현재 구현
-
-- `RefreshToken`
-  - table: `refresh_tokens`
-  - `userId`
-  - `tokenId`
-  - `expiresAt`
-  - `revokedAt`
-  - `BaseEntity` 상속
-- `RefreshTokenRepository`
-  - `findByTokenId`
-  - `findByUserIdAndRevokedAtIsNull`
-- `RefreshTokenService`
-  - access/refresh token 발급
-  - refresh token 저장
-  - refresh token 검증
-  - 단건 폐기
-  - 사용자 전체 refresh token 폐기
-- `SecurityJpaAutoConfiguration`
-  - `RefreshTokenService` bean 등록
-  - `SecurityJpaPackageRegistrar` import
-- `SecurityJpaPackageRegistrar`
-  - `RefreshToken` entity package와 repository package를 auto-configuration package에 등록
-
-## 문제점
-
-### 1. refresh token 저장 정책이 고정되어 있음
-
-현재는 token 발급 시 항상 refresh token을 저장한다. 일부 서비스는 stateless refresh token, Redis 저장, 외부 세션 저장소를 선택할 수 있다.
-
-### 2. 동시 재발급 정책이 없음
-
-refresh token 재발급 시 기존 token을 폐기하고 새 token을 저장하는 흐름은 소비 서비스가 직접 조합해야 한다. rotate 정책을 모듈에서 제공할지 정해야 한다.
-
-### 3. 오래된 token 정리 기능이 없음
-
-만료되거나 폐기된 refresh token을 삭제하는 repository/service API가 없다. 운영 DB에서는 정리 배치가 필요하다.
-
-### 4. repository 조회가 active token 기준으로 충분하지 않음
-
-현재 `findByUserIdAndRevokedAtIsNull`는 만료 여부를 DB 조건에 포함하지 않는다. service에서 `isExpired`를 볼 수 있지만, 대량 데이터에서는 DB 조건이 필요할 수 있다.
-
-### 5. token id unique 충돌 처리 정책이 없음
-
-`token_id`는 unique다. UUID 충돌 가능성은 낮지만, 저장 실패 시 재시도 정책은 없다.
-
-### 6. auditing 타입 이슈를 JPA 모듈과 공유함
-
-`RefreshToken`이 `BaseEntity`를 상속하므로 JPA auditing 타입 정책의 영향을 그대로 받는다.
-
-## 리팩토링 방향
-
-### 1단계: 저장소 책임 명확화
-
-`RefreshTokenService`가 담당하는 범위를 문서화한다.
-
-현재 책임:
-
-- token 생성은 `JwtTokenGenerator`
-- refresh token claim 검증은 `JwtProvider`
-- 저장/조회/폐기는 `RefreshTokenRepository`
-- 서비스는 위 기능을 조합
-
-검토:
-
-- `RefreshTokenStore` interface를 만들고 JPA 구현을 제공할지
-- 지금은 JPA 전용 모듈이므로 interface 없이 단순 유지할지
-
-권장:
-
-- 지금은 단순 유지
-- Redis나 외부 저장소 요구가 생기면 `security-token-store` 같은 별도 추상화 검토
-
-### 2단계: refresh token rotation API 추가
-
-소비 서비스가 매번 직접 구현하지 않도록 아래 API를 검토한다.
-
-```java
-@Transactional
-public JwtTokenResult rotate(String refreshToken, String role) {
-    VerifiedRefreshToken verified = verify(refreshToken);
-    revoke(refreshToken);
-    return generateToken(verified.userId(), role);
-}
+```text
+security-domain <- security-application <- security-jpa -> jpa-auditing
 ```
 
-주의:
+Application이 소유하는 계약은 다음과 같다.
 
-- role을 refresh token claim에서 그대로 쓸지
-- 최신 사용자 role을 소비 서비스가 조회해서 넘길지 결정해야 한다.
+- `RefreshSessionRepositoryPort`: 한 `RefreshSession` Aggregate의 저장과 조회
+- `RefreshSessionBulkRevocationPort`: subject 단위 전체 폐기
+- `RefreshSessionCleanupPort`: 보관 경계를 지난 세션의 제한된 batch 삭제
 
-권장:
+`security-jpa`는 각 Port를 별도 Adapter로 구현한다. 토큰 발급과 refresh 검증은 `security-jwt-issuer`가 제공하며, 자동 설정은 필요한 Port가 모두 있을 때만 해당 UseCase를 연결한다. Gateway용 `security-jwt`는 이 모듈과 연결하지 않는다.
 
-- 보안상 최신 role은 소비 서비스가 사용자 DB에서 조회한 뒤 넘긴다.
-- 모듈은 `verify`, `revoke`, `generateToken` 조합 API만 제공한다.
+## 빠른 시작
 
-### 3단계: cleanup API 추가
-
-repository 메서드 후보:
-
-```java
-int deleteByExpiresAtBefore(Instant now);
-int deleteByRevokedAtIsNotNullAndRevokedAtBefore(Instant threshold);
-```
-
-service 메서드 후보:
-
-```java
-int deleteExpiredTokens();
-int deleteRevokedTokensBefore(Instant threshold);
-```
-
-목표:
-
-- 소비 서비스가 스케줄러에서 쉽게 호출할 수 있다.
-- 모듈이 스케줄러를 자동 등록하지는 않는다.
-
-### 4단계: active token 조회 최적화
-
-추가 repository 후보:
-
-```java
-List<RefreshToken> findByUserIdAndRevokedAtIsNullAndExpiresAtAfter(Long userId, Instant now);
-```
-
-`revokeAllByUserId`는 만료 token까지 폐기 표시할 필요가 있는지 정책을 정한다.
-
-### 5단계: transactional 경계와 lock 정책 검토
-
-동시에 같은 refresh token으로 재발급 요청이 들어올 수 있다.
-
-검토안:
-
-- token row 조회 시 pessimistic lock
-- unique token id와 revokedAt update로 idempotent 처리
-- 재발급 API에서 기존 token revoke와 새 token 저장을 같은 transaction으로 묶기
-
-초기 권장:
-
-- 단건 verify/revoke/generate API는 유지
-- rotate API를 추가한다면 같은 transaction 안에서 처리
-- 고부하 서비스에서 lock 요구가 생기면 별도 lock repository method 추가
-
-### 6단계: 테스트 보강
-
-테스트 대상:
-
-- token 발급 시 refresh token 저장
-- 저장되지 않은 token 거부
-- user id 불일치 거부
-- 만료 token 거부
-- revoked token 거부
-- 단건 revoke idempotency
-- 사용자 전체 revoke
-- cleanup API
-- rotation API
-
-## 사용 예시
+인증 서버 조합은 starter 하나로 사용할 수 있다.
 
 ```gradle
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+}
+```
+
+Adapter만 선택하려면 다음 두 artifact를 사용한다.
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-security-jwt-issuer:0.0.1-SNAPSHOT'
     implementation 'com.dochiri:dochiri-security-jpa:0.0.1-SNAPSHOT'
 }
 ```
 
-```java
-@Service
-class AuthService {
+`security-jpa`가 Connector/J, Flyway core와 MySQL 지원을 모두 runtime 의존성으로 제공한다. 인증 애플리케이션은 인증 DB 접속 정보와 JWT secret만 환경 변수로 제공한다.
 
-    private final RefreshTokenService refreshTokenService;
-
-    AuthService(RefreshTokenService refreshTokenService) {
-        this.refreshTokenService = refreshTokenService;
-    }
-
-    JwtTokenResult login(Long userId, String role) {
-        return refreshTokenService.generateToken(userId, role);
-    }
-}
+```bash
+export JWT_SECRET='32자 이상의 운영 비밀키'
+export SPRING_DATASOURCE_URL='jdbc:mysql://localhost:3306/app?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true'
+export SPRING_DATASOURCE_USERNAME='app'
+export SPRING_DATASOURCE_PASSWORD='secret'
 ```
 
-refresh token 재발급은 소비 서비스가 최신 사용자 상태를 확인한 뒤 조합한다.
+이 네 값은 애플리케이션마다 달라지는 credential/endpoint라 라이브러리가 안전하게 만들 수 없는 값이다. TTL, auditor, Flyway location, driver class, Entity/Repository scan과 UseCase 조립은 설정하지 않는다. `spring.jpa.open-in-view=false`와 `ddl-auto=validate`는 운영 정책상 원할 때 추가할 수 있지만 기동 필수값은 아니다.
 
-```java
-JwtTokenResult refresh(String refreshToken) {
-    Long userId = refreshTokenService.verifyAndExtractUserId(refreshToken);
-    User user = userRepository.findById(userId).orElseThrow();
+## Persistence Adapter
 
-    refreshTokenService.revoke(refreshToken);
-    return refreshTokenService.generateToken(user.getId(), user.getRole());
-}
+| 구성요소 | 책임 |
+| --- | --- |
+| `RefreshSessionEntity` | DB row 표현. 비즈니스 규칙 없음 |
+| `RefreshSessionJpaRepository` | package-private Spring Data repository와 잠금/일괄 SQL |
+| `RefreshSessionMapper` | Domain과 Entity의 구조 변환만 수행하는 final utility |
+| `RefreshSessionPersistenceAdapter` | Aggregate repository Port 구현 |
+| `RefreshSessionBulkRevocationAdapter` | subject 단위 폐기 Port 구현 |
+| `RefreshSessionCleanupAdapter` | 제한된 cleanup Port 구현 |
+| `SecurityJpaPackageRegistrar` | Entity와 repository package 자동 등록 |
+
+```text
+RefreshSession                    RefreshSessionEntity
+-----------------------------     --------------------------------
+RefreshSessionId sessionId        Long id/version       (비공개)
+TokenId currentTokenId            String sessionId/currentTokenId
+AuthenticationSubject subject     String subjectId
+AuthenticationRole role           String roleName
+TokenExpiration expiresAt         Instant expiresAt/revokedAt
+RefreshSessionStatus status
+RevokedAt revokedAt
 ```
 
-## 완료 기준
+JPA 객체 연관관계는 사용하지 않는다. 값 있는 생성과 수정은 persistence package 안에 제한하고, repository도 외부에 공개하지 않는다.
 
-- refresh token 저장/검증/폐기 책임이 명확하다.
-- 재발급과 cleanup에 필요한 service API가 정리되어 있다.
-- 동시 재발급 정책이 문서화되어 있다.
-- JPA auditing 타입 정책과 충돌하지 않는다.
-- `./gradlew :modules:security-jpa:test`가 통과한다.
+## MySQL migration
+
+모듈이 소유하는 versioned migration은 다음과 같다.
+
+```text
+db/migration/dochiri-security/V20260715160000__create_refresh_sessions.sql
+```
+
+`refresh_sessions`는 MySQL 8.4 기준으로 다음 계약을 제공한다.
+
+- `BIGINT AUTO_INCREMENT` 기술 키와 `version`
+- 마이크로초 정밀도의 `DATETIME(6)` 시각
+- `session_id`, `current_token_id` unique 제약
+- 식별자 대소문자를 구분하는 `ascii_bin`/`utf8mb4_0900_bin` collation
+- 전체 폐기용 `(subject_id, revoked_at, expires_at)` index
+- cleanup용 `(expires_at, id)`, `(revoked_at, id)` index
+- `ENGINE=InnoDB`
+
+운영 schema는 Flyway가 소유하며 Hibernate schema 생성은 사용하지 않는다. 시작 시 Entity 정합성까지 확인하려면 소비자가 `spring.jpa.hibernate.ddl-auto=validate`를 선택할 수 있다. migration 파일을 복사하거나 별도 location을 추가할 필요는 없다.
+
+통합 테스트는 `mysql:8.4.10` Testcontainers에서 migration, Entity mapping, UTC/마이크로초 정밀도, collation, unique/index, 잠금과 batch SQL을 검증한다.
+
+## UseCase 자동 연결
+
+| 자동 설정 | 조건 | 추가되는 Inbound Port |
+| --- | --- | --- |
+| `SecurityUseCaseAutoConfiguration` | issuer, refresh verifier, ID/time, repository, bulk revocation Port | 발급·검증·단건/전체 폐기 |
+| `SecurityRotationUseCaseAutoConfiguration` | rotating issuer, session token verifier, ID/time, repository Port | `RotateTokensUseCase` |
+| `SecurityCleanupUseCaseAutoConfiguration` | cleanup Port | `CleanupRefreshSessionsUseCase` |
+
+기존 발급·검증·폐기 계약은 유지된다. rotation과 cleanup은 조건이 충족될 때 추가되므로 개별 Adapter를 교체하는 소비자도 필요한 기능만 선택할 수 있다.
+
+## Rotation과 replay 정책
+
+```java
+RotateTokensResult rotated = rotateTokensUseCase.execute(
+        new RotateTokensCommand(new EncodedToken(rawRefreshToken))
+);
+```
+
+- refresh JWT의 `sid`는 세션 동안 유지되고 `jti`만 교체된다.
+- session row를 `PESSIMISTIC_WRITE`로 잠가 같은 token의 동시 rotation을 직렬화한다.
+- 먼저 처리된 한 요청만 성공한다.
+- 교체된 token이 다시 제시되면 replay로 판단하고 같은 세션을 폐기한다.
+- replay 예외는 반환하되 폐기 트랜잭션은 커밋한다.
+- refresh 절대 만료와 발급 당시 role snapshot은 rotation으로 바뀌지 않는다.
+
+클라이언트는 refresh 요청을 single-flight로 처리해야 한다. role이 변경되면 소비 Context가 `RevokeAllRefreshTokensUseCase`를 호출해 기존 snapshot을 무효화한다.
+
+## Cleanup 운영 정책
+
+라이브러리는 스케줄러 주기와 보관 기간을 정하지 않는다. 소비 애플리케이션이 cutoff와 batch 크기를 전달한다.
+
+```java
+CleanupRefreshSessionsResult result = cleanupRefreshSessionsUseCase.execute(
+        new CleanupRefreshSessionsCommand(
+                new CurrentTime(expiredBefore),
+                new RevokedAt(revokedBefore),
+                500
+        )
+);
+```
+
+- batch 크기는 1~1000이다.
+- `expires_at < expiredBefore` 또는 `revoked_at < revokedBefore`인 row만 삭제한다.
+- 경계와 같은 시각은 삭제하지 않는다.
+- 호출 한 번은 최대 한 batch만 삭제한다.
+- `moreMayRemain()`이 `true`면 소비 스케줄러가 다음 batch를 호출할 수 있다.
+
+한 트랜잭션이 길어지지 않도록 `moreMayRemain()`을 보고 무제한 loop를 돌리지 말고, 실행당 최대 batch 수를 소비 정책으로 제한한다.
+
+## Security auditing
+
+`SecurityAuditAutoConfiguration`은 Spring Data가 있을 때 `AuditorAware<String>` 기본 Bean을 제공한다.
+
+- principal이 `JwtPrincipal`이면 `principal.subject().value()`를 사용한다.
+- 다른 principal이면 `Authentication.getName()`을 사용한다.
+- 인증 정보가 없거나 익명이면 `security.audit.system-subject`를 사용한다.
+- 소비자가 `AuditorAware`를 등록하면 기본 구현은 물러난다.
+
+auditing이 `security-jpa`에 격리되어 있으므로 JPA 없는 `security` 소비자는 Spring Data 타입을 로드하지 않는다.
+
+## 실패 계약
+
+Domain/Application 예외는 HTTP, JPA, JJWT 타입을 포함하지 않는다. 저장 여부, token 계약, role/subject/expiration 불일치, inactive/replay는 `security-webmvc`의 provider와 한국어 catalog를 통해 RFC 9457 응답으로 변환된다. cleanup Adapter 계약 위반은 외부에 내부 값이 노출되지 않는 500 오류로 매핑된다.
+
+## 남은 확장점
+
+- 여러 인스턴스의 대규모 세션 조회가 병목이 될 때 `RefreshSessionRepositoryPort`의 Redis Adapter 검토
+- 최신 role을 rotation 시점마다 조회해야 하는 서비스는 소비 Context가 소유하는 Published Language/통합 Port 설계
+- 실제 release 전 schema 하위 호환 정책과 migration rollback/runbook 확정
+
+## 검증
+
+```bash
+./gradlew :modules:security-jpa:test
+./gradlew :modules:auth-server-starter:test
+./gradlew check -PchangedCoverageBaseRef=origin/main
+```
+
+통합 테스트는 발급·검증·폐기, 정상 rotation, 동시 rotation, replay 세션 폐기, MySQL migration, cleanup 경계와 batch 동작을 검증한다.

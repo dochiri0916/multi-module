@@ -1,153 +1,117 @@
-# JPA Module
+# JPA Modules
 
-`modules:jpa`는 JPA 기반 서비스에서 공통으로 사용할 `BaseEntity`, JPA auditing, Querydsl `JPAQueryFactory` 자동 등록을 제공하는 모듈이다.
+JPA 공통 기능은 auditing과 QueryDSL의 선택 단위를 분리한다. `modules:jpa`는 두 기능을 함께 쓰는 기존 소비자를 위한 aggregator다.
 
-## 현재 구현
+## 모듈
 
-- `BaseEntity`
-  - `createdAt`, `updatedAt`
-  - `createdBy`, `updatedBy`
-  - `@MappedSuperclass`
-  - `AuditingEntityListener` 사용
-- `JpaAutoConfiguration`
-  - `@EnableJpaAuditing`
-  - `AuditorAware<String>` fallback bean 등록
-  - 기본 auditor는 `security.system-user-id` 또는 `dochiri.jpa.audit.system-user-id`
-- `QueryDslAutoConfiguration`
-  - `EntityManager`와 `JPAQueryFactory`가 classpath에 있으면 `JPAQueryFactory` bean 등록
-- auto-configuration imports
-  - `JpaAutoConfiguration`
-  - `QueryDslAutoConfiguration`
+| 모듈 | 책임 | 주요 전이 의존성 |
+| --- | --- | --- |
+| `jpa-auditing` | `BaseEntity`, JPA auditing, fallback `AuditorAware<String>` | Spring Data JPA |
+| `jpa-querydsl` | `JPAQueryFactory` 자동 구성 | Spring Data JPA, QueryDSL JPA |
+| `jpa` | 위 두 모듈 aggregator | 두 모듈 전체 |
 
-## 문제점
+QueryDSL이 필요 없다면 `dochiri-jpa-auditing`만 의존한다.
 
-### 1. auditor 타입 정책이 흔들렸음
+## JPA auditing
 
-`BaseEntity.createdBy`, `updatedBy`는 `String`인데, security 모듈은 기존에 `AuditorAware<Long>`를 제공했다. 이 차이 때문에 auditing 통합에서 타입 불일치나 기대값 혼란이 생길 수 있었다.
+`BaseEntity`는 다음 기술 감사 필드를 제공하는 `@MappedSuperclass`다.
 
-1단계에서 확정한 정책:
+- `createdAt`, `updatedAt`: `Instant`
+- `createdBy`, `updatedBy`: `String`
 
-- `BaseEntity.createdBy`, `updatedBy`는 `String`으로 유지한다.
-- security 모듈의 auditor도 `AuditorAware<String>`로 맞춘다.
-- 사용자 id가 `Long`이어도 auditing 저장값은 문자열 표현으로 저장한다.
-
-### 2. `@EnableJpaAuditing` 자동 적용의 영향 범위가 큼
-
-JPA 모듈을 의존하는 순간 auditing이 자동 활성화된다. 대부분의 API 서비스에는 편하지만, 일부 batch/worker/test context에서는 원하지 않는 동작일 수 있다.
-
-### 3. fallback auditor 정책이 환경 직접 바인딩에 의존함
-
-`JpaAuditProperties.from(Environment)`가 직접 Binder를 사용한다. 동작은 단순하지만 configuration properties로 드러나지 않아 문서화와 metadata 생성이 약하다.
-
-### 4. Querydsl 의존성이 모든 JPA 소비자에게 전파됨
-
-현재 `querydsl-jpa`가 `api`로 노출된다. Querydsl을 쓰지 않는 서비스도 의존성을 받는다.
-
-### 5. 현재 JPA 통합 테스트 실패가 있음
-
-전체 테스트에서 `BaseEntityIntegrationTest`의 auditing assertion이 실패하고 있다. 리팩토링 전 이 실패 원인을 먼저 고정해야 한다.
-
-## 리팩토링 방향
-
-### 1단계: auditing 타입 정책 확정
-
-상태: 완료
-
-- `BaseEntity.createdBy`, `updatedBy`를 `String`으로 유지한다.
-- security 모듈의 auditor도 `AuditorAware<String>`로 맞춘다.
-- 사용자 id가 `Long`이어도 auditing 저장값은 문자열 표현으로 저장한다.
-
-이유:
-
-- 공통 엔티티가 특정 사용자 id 타입에 묶이지 않는다.
-- 시스템 사용자, 외부 인증 subject, service account 같은 값을 표현하기 쉽다.
-- 기존 `length = 36` 정책과도 맞다.
-
-대안:
-
-- `BaseEntity`를 `Long` auditor 전용으로 바꾸는 방식
-- `StringAuditableEntity`, `LongAuditableEntity`를 분리하는 방식
-
-### 2단계: `JpaAuditProperties`를 정식 properties로 전환
-
-`@ConfigurationProperties(prefix = "dochiri.jpa.audit")` 형태로 명시한다.
-
-검토할 property:
+감사자 문자열은 DB 기술 키 타입에 묶이지 않으며 인증 subject, service account, system actor를 표현할 수 있다.
 
 ```yaml
 dochiri:
   jpa:
     audit:
-      enabled: true
-      system-user-id: "0"
+      system-subject: system
 ```
 
-하위 호환:
+`JpaAuditProperties`는 `@ConfigurationProperties(prefix = "dochiri.jpa.audit")` record다. blank 또는 누락된 system subject는 `system`으로 정규화한다.
 
-- 기존 `security.system-user-id`를 한동안 fallback으로 읽는다.
-- 문서에서는 `dochiri.jpa.audit.system-user-id`를 우선 경로로 안내한다.
+`JpaAuditingAutoConfiguration`은 필요한 Spring Data class가 있을 때 auditing을 활성화한다. 소비자가 `AuditorAware` Bean을 제공하면 fallback 구현은 물러난다.
 
-### 3단계: auditing auto-configuration 조건 강화
+```java
+@Bean
+AuditorAware<String> serviceAuditor() {
+    return () -> Optional.of("order-service");
+}
+```
 
-검토할 조건:
+`security-jpa`를 함께 사용하면 `SecurityAuditAutoConfiguration`이 먼저 Security Context 기반 auditor를 제공한다.
 
-- `@ConditionalOnClass(EntityManager.class)`
-- `@ConditionalOnProperty(prefix = "dochiri.jpa.audit", name = "enabled", havingValue = "true", matchIfMissing = true)`
-- `@ConditionalOnMissingBean(AuditorAware.class)`
+## QueryDSL
 
-목표:
-
-- 기본은 편하게 동작한다.
-- 필요하면 소비 프로젝트가 auditing을 끄거나 자체 auditor를 등록할 수 있다.
-
-### 4단계: Querydsl 자동 등록 정책 정리
-
-선택지:
-
-- 현재처럼 `querydsl-jpa`를 `api`로 유지한다.
-- `implementation`으로 낮추고 Querydsl 사용 서비스가 직접 의존하게 한다.
-- Querydsl 자동 등록을 별도 모듈로 분리한다.
-
-권장:
-
-- 지금은 `jpa` 모듈에 유지하되 문서에 "Q 클래스 annotation processor는 소비 프로젝트가 직접 추가"해야 한다고 명시한다.
-- Querydsl을 쓰지 않는 서비스에서 의존성 부담이 커지면 별도 모듈 분리를 검토한다.
-
-### 5단계: 테스트 안정화
-
-우선순위:
-
-1. 현재 실패 중인 `BaseEntityIntegrationTest` 원인 확인
-2. auditor 타입 정책 반영
-3. fallback auditor 테스트
-4. custom `AuditorAware` 우선순위 테스트
-5. Querydsl bean 등록 테스트
-
-## 사용 예시
+`jpa-querydsl`은 `EntityManager`가 있고 사용자 `JPAQueryFactory`가 없을 때 기본 factory를 등록한다.
 
 ```gradle
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-jpa-querydsl:0.0.1-SNAPSHOT'
 }
 ```
+
+소비 프로젝트에서 Q class 생성이 필요하면 해당 프로젝트의 Entity source set에 QueryDSL annotation processor를 설정한다. 모듈의 factory 자동 구성은 소비 프로젝트의 Q class 생성 책임을 대신하지 않는다.
+
+사용자 factory를 제공할 수 있다.
 
 ```java
-@Entity
-public class Post extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    private String title;
+@Bean
+JPAQueryFactory applicationQueryFactory(EntityManager entityManager) {
+    return new JPAQueryFactory(entityManager);
 }
 ```
 
-## 완료 기준
+이 경우 기본 Bean은 등록되지 않는다.
 
-- auditor 타입 정책이 명확하다. 완료
-- security 모듈과 auditing 타입이 충돌하지 않는다. 완료
-- 소비 프로젝트가 자체 `AuditorAware`를 등록할 수 있다.
-- Querydsl 사용 조건과 annotation processor 설정이 문서화되어 있다.
-- `./gradlew :modules:jpa:test`가 통과한다.
+## 선택 예시
+
+auditing만 사용:
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-jpa-auditing:0.0.1-SNAPSHOT'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+}
+```
+
+auditing과 QueryDSL을 함께 사용:
+
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-jpa:0.0.1-SNAPSHOT'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+}
+```
+
+## Entity 사용 원칙
+
+- 소비 Context의 JPA Entity는 Adapter 계층에 둔다.
+- Aggregate 간 참조는 대상 식별자 값으로 저장한다.
+- JPA 객체 연관관계와 relation annotation을 사용하지 않는다.
+- DB 기술 키 `Long id`는 Entity 내부에만 두고 외부에 노출하지 않는다.
+- 비즈니스 규칙은 Domain Aggregate/VO가 소유하며 `BaseEntity`에는 넣지 않는다.
+- 운영 schema는 versioned migration이 소유한다.
+
+## 자동 구성
+
+```text
+jpa-auditing:
+  com.dochiri.jpa.configuration.JpaAuditingAutoConfiguration
+
+jpa-querydsl:
+  com.dochiri.jpa.configuration.QueryDslAutoConfiguration
+```
+
+두 자동 구성 모두 소비자 Bean back-off를 테스트한다.
+
+## 검증
+
+```bash
+./gradlew :modules:jpa-auditing:test
+./gradlew :modules:jpa-querydsl:test
+./gradlew :modules:jpa:test
+./gradlew check
+```
+
+테스트는 fallback/custom auditor, auditing 통합 저장, QueryDSL classpath 선택성, 기본 factory 및 사용자 factory back-off를 검증한다.

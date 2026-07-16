@@ -1,189 +1,230 @@
-# Security Module
+# Security Modules
 
-`modules:security`는 JWT 발급/검증, Spring Security filter chain, CORS, 인증 실패 응답, auditing 연동을 제공하는 모듈이다.
+보안 기능은 순수 Domain/Application과 Gateway 검증, 인증 서버 발급/JPA Adapter로 분리한다. `modules:security`는 기존 사용자를 위해 `security-jwt`와 `security-webmvc`를 묶는 JPA 없는 호환 aggregator다.
 
-## 현재 구현
+## 모듈 책임
 
-- `SecurityAutoConfiguration`
-  - `JwtAutoConfiguration`
-  - `SecurityFilterChainAutoConfiguration`
-  - `CorsAutoConfiguration`
-  - `SecurityAuditAutoConfiguration`
-- JWT
-  - `JwtProvider`
-  - `JwtTokenGenerator`
-  - `RefreshTokenVerifier`
-  - `JwtAuthenticationConverter`
-  - `JwtAuthenticationFilter`
-  - `JwtPrincipal`
-- Security response
-  - `JwtAuthenticationEntryPoint`
-  - `JwtAccessDeniedHandler`
-  - `SecurityResponseWriter`
-- Properties
-  - `jwt.secret`
-  - `jwt.access-expiration`
-  - `jwt.refresh-expiration`
-  - `cors.allowed-origins`
-  - `security.public-endpoints`
-  - `security.system-user-id`
+| 모듈 | 책임 |
+| --- | --- |
+| `security-domain` | `RefreshSession` Aggregate, `AuthenticationSubject`, `AuthenticationRole`, token/session VO, Domain 예외 |
+| `security-application` | 발급·검증·회전·폐기·정리 UseCase와 token codec·repository·시간·ID Port |
+| `security-error-webmvc` | 보안 Application 예외와 401/403의 공통 API 오류 mapping/message provider |
+| `security-jwt` | Gateway용 JJWT `AccessTokenVerifierPort` 구현 |
+| `security-jwt-issuer` | 인증 서버용 발급·회전·refresh 검증·시간·token ID Port 구현 |
+| `security-webmvc` | 인증 filter/principal, `@PublicApi`, CORS/filter chain, 공통 401/403 Adapter |
+| `security` | JWT + WebMVC aggregator |
+| `gateway-security-starter` | Gateway 검증 조합. DB와 발급 기능 없음 |
+| `auth-server-starter` | 인증 서버 발급·refresh session·MySQL 조합. Access Token filter 없음 |
 
-## 문제점
+```text
+security-domain <- security-application <- security-jwt             (access 검증)
+                                      \--- security-jwt-issuer      (발급/refresh 검증)
+                                      \--- security-error-webmvc -> error-handling
+                                      \--- security-webmvc ------> security-error-webmvc
+```
 
-### 1. security filter chain 자동 등록의 영향이 큼
+`security` runtime classpath에는 Spring Data와 JPA가 없다. refresh token 저장과 Security auditing이 필요하면 `security-jpa`를 추가한다.
 
-`dochiri-security`를 의존하면 기본 `SecurityFilterChain`이 등록된다. 서비스가 자체 security 정책을 갖는 경우에는 `SecurityFilterChain` bean을 직접 등록하면 기본 bean은 물러나지만, 이 정책을 문서로 분명히 해야 한다.
+## 공개 Domain 계약
 
-### 2. JWT 설정 단위가 millisecond long 값임
+- `AuthenticationSubject(String)`: 소비 Context 식별자의 인증 표현
+- `AuthenticationRole(String)`: `ROLE_` prefix를 제거해 정규화한 role
+- `EncodedToken(String)`: raw token을 캡슐화하고 문자열 표현에서 값을 가린다.
+- `TokenId(String)`: token 식별자. `generate()`는 하이픈 없는 UUID를 생성한다.
+- `RefreshSessionId`: rotation 동안 유지되는 세션 식별자
+- `RefreshSession`: session ID만으로 동등성을 판단하고 현재 token과 폐기 상태를 보호하는 불변 Aggregate
 
-`accessExpiration`, `refreshExpiration`이 `long` millisecond다. 설정 파일에서 의미가 덜 명확하고 실수하기 쉽다.
+공통 라이브러리는 소비 Context의 `MemberId`를 알지 못한다. 소비 경계에서 명시적으로 변환한다.
 
-개선 방향:
+```java
+AuthenticationSubject subject = new AuthenticationSubject(memberId.value());
+```
 
-- `Duration` 타입으로 전환
-- 하위 호환이 필요하면 기존 long millisecond를 일정 기간 지원
+## Application UseCase
 
-### 3. Security 응답 계약이 error-handling 응답과 다름
+| Inbound Port | 입력 | 출력 | 트랜잭션 |
+| --- | --- | --- | --- |
+| `IssueTokensUseCase` | `IssueTokensCommand` | `IssueTokensResult` | 변경 |
+| `VerifyRefreshTokenUseCase` | `VerifyRefreshTokenCommand` | `VerifyRefreshTokenResult` | 읽기 전용 |
+| `RotateTokensUseCase` | `RotateTokensCommand` | `RotateTokensResult` | 변경 |
+| `RevokeRefreshTokenUseCase` | `RevokeRefreshTokenCommand` | `RevokeRefreshTokenResult` | 변경 |
+| `RevokeAllRefreshTokensUseCase` | `RevokeAllRefreshTokensCommand` | `RevokeAllRefreshTokensResult` | 변경 |
+| `CleanupRefreshSessionsUseCase` | `CleanupRefreshSessionsCommand` | `CleanupRefreshSessionsResult` | 변경 |
 
-`SecurityResponseWriter`는 `ProblemDetail`을 쓰지만 `code`, `traceId`를 넣지 않는다. error-handling 모듈의 응답 계약과 완전히 같지는 않다.
+Application 계층은 다음 Outbound Port 계약을 소유한다.
 
-정해야 할 것:
+- `AccessTokenVerifierPort`
+- `TokenIssuerPort`, `RotatingTokenIssuerPort`
+- `RefreshTokenVerifierPort`, `RefreshSessionTokenVerifierPort`
+- `TokenIdGeneratorPort`
+- `CurrentTimePort`
+- `RefreshSessionRepositoryPort`
+- `RefreshSessionBulkRevocationPort`
+- `RefreshSessionCleanupPort`
 
-- security 모듈이 error-handling 모듈에 의존할지
-- security 응답에도 자체적으로 `code`, `traceId`를 넣을지
-- 두 모듈을 독립적으로 유지하되 문서상 응답 차이를 허용할지
+JJWT, JPA Entity, Spring Data Repository, Spring Security 예외는 Application 공개 계약에 나타나지 않는다.
 
-### 4. JWT claim 계약이 고정되어 있음
+## JWT Adapter 경계
 
-현재 claim:
+`JjwtAccessTokenVerifierAdapter`는 Gateway에서 access token만 검증한다. `JjwtTokenIssuerAdapter`와 `JjwtRefreshTokenVerifierAdapter`는 인증 서버에만 존재한다. 세 Adapter는 다음 claim 계약을 공유한다.
 
-- `sub`: user id
-- `role`
-- `category`: `access` 또는 `refresh`
-- refresh token은 `jti` 사용
+| claim | access | refresh |
+| --- | --- | --- |
+| `sub` | `AuthenticationSubject.value()` | 동일 |
+| `role` | 정규화된 role | 동일 |
+| `category` | `access` | `refresh` |
+| `jti` | 없음 | `TokenId.value()` |
+| `sid` | 없음 | `RefreshSessionId.value()` |
+| `exp` | access TTL | refresh TTL |
 
-MSA에서 서비스별 tenant, organization, permission 같은 확장 claim이 필요할 수 있다.
+최초 발급에서는 `sid`와 `jti`가 같은 값이고, rotation 뒤에는 `sid`만 유지되며 `jti`가 교체된다. refresh 만료 시각은 최초 발급 시점의 절대 만료를 유지해 rotation으로 세션 수명이 연장되지 않는다.
 
-### 5. `JwtAuthenticationFilter`가 인증 실패를 조용히 넘김
+JJWT `Claims`와 SDK 예외는 Adapter 내부에만 존재한다. 검증 결과는 자체 record로 변환하고, 실패는 `InvalidTokenException`의 Application error code로 변환한다.
 
-토큰이 잘못되면 security context를 비우고 filter chain을 계속 진행한다. 이후 보호 엔드포인트에서 401이 발생하므로 동작은 자연스럽지만, 원인별 응답 메시지를 구분하기는 어렵다.
+JWT 검증은 주입된 `Clock`을 사용한다. 소비자가 역할별 Port, `Clock`, `TokenIdGeneratorPort`, `CurrentTimePort`를 제공하면 해당 기본 Adapter가 물러난다.
 
-### 6. auditor 타입을 JPA 모듈과 맞춤
+## 설정
 
-`SecurityAuditAutoConfiguration`은 `AuditorAware<String>`를 제공한다. `jpa` 모듈의 `BaseEntity`도 `String createdBy/updatedBy`를 사용하므로 auditing 저장 타입은 문자열로 통일한다.
-
-## 리팩토링 방향
-
-### 1단계: 설정 계약 정리
-
-`JwtProperties`를 `Duration` 기반으로 바꾸는 것을 검토한다.
-
-목표 설정:
+Gateway의 필수 설정은 `JWT_SECRET` 하나다. 인증 서버는 같은 `JWT_SECRET`과 인증 DB 정보를 제공한다. 일반 서비스에는 JWT 설정을 배포하지 않는다. Spring Boot가 `jwt.secret`으로 자동 바인딩하며 TTL은 인증 서버 정책을 바꿀 때만 선언한다.
 
 ```yaml
 jwt:
   secret: ${JWT_SECRET}
   access-token-ttl: 1h
   refresh-token-ttl: 7d
+
+cors:
+  allowed-origins:
+    - https://app.example.com
+
+security:
+  swagger-public: false
 ```
 
-하위 호환:
+- secret은 최소 32자다.
+- access TTL 기본값 `1h`와 refresh TTL 기본값 `7d`는 `security-jwt-issuer`에만 적용된다. 재정의할 때는 0보다 큰 Spring `Duration` 형식이어야 한다.
+- wildcard CORS origin을 사용하면 credentials는 자동으로 비활성화된다.
+- Swagger endpoint는 기본적으로 보호되며 `security.swagger-public=true`일 때만 공개된다.
 
-- 기존 `access-expiration`, `refresh-expiration`은 deprecated 문서화
-- 내부 변환으로 일정 기간 지원
+## 공개 API
 
-### 2단계: Security 응답 계약 정렬
+Gateway가 Servlet Handler 기반 endpoint를 직접 제공할 때 공개 endpoint는 path 설정 목록이 아니라 handler metadata로 표시한다.
 
-권장안:
+```java
+@PublicApi
+@PostMapping("/api/auth/login")
+LoginResponse login(@RequestBody LoginRequest request) {
+    return loginUseCase.execute(request.toCommand());
+}
+```
 
-- security 모듈은 error-handling 모듈에 직접 의존하지 않는다.
-- 대신 `SecurityResponseWriter`가 `code`, `traceId`를 직접 추가한다.
+`@PublicApi`는 type과 method에 사용할 수 있다. `PublicApiRequestMatcher`는 실제 `HandlerMethod`의 metadata를 확인하며, handler 조회 실패나 알 수 없는 handler를 공개 권한으로 승격하지 않는다.
 
-예시:
+## 인증 principal
+
+유효한 access token은 다음 principal로 변환된다.
+
+```java
+public record JwtPrincipal(
+        AuthenticationSubject subject,
+        AuthenticationRole role
+) implements Principal {
+}
+```
+
+`JwtPrincipal.getName()`은 subject 문자열을 반환한다. `Long userId` 계약은 제공하지 않는다.
+
+## 401/403 오류 계약
+
+`security-error-webmvc`는 보안 Application 예외와 401/403 code의 mapping/message provider만 제공한다. 따라서 인증 서버는 refresh 오류를 공통 계약으로 변환하면서도 JWT filter나 `SecurityFilterChain`을 받지 않는다. Gateway의 Spring Security handler는 `SecurityErrorResponsePort`만 호출하고, 기본 `SecurityProblemDetailResponseAdapter`가 `error-handling`의 mapper, 한국어 message catalog, `ApiProblemDetailFactory`를 사용한다.
+
+| 상황 | code | status | type |
+| --- | --- | ---: | --- |
+| 인증 필요 | `SECURITY.AUTHENTICATION_REQUIRED` | 401 | `/problems/unauthorized` |
+| 접근 거부 | `SECURITY.ACCESS_DENIED` | 403 | `/problems/forbidden` |
 
 ```json
 {
-  "type": "/errors/unauthorized",
-  "title": "UNAUTHORIZED",
+  "type": "/problems/unauthorized",
+  "title": "인증 필요",
   "status": 401,
   "detail": "인증이 필요합니다.",
   "instance": "/api/me",
-  "code": "UNAUTHORIZED",
-  "traceId": "..."
+  "code": "SECURITY.AUTHENTICATION_REQUIRED",
+  "traceId": "request-401"
 }
 ```
 
-### 3단계: JWT claim 확장 지점 추가
+내부 예외 메시지와 raw token은 응답에 노출하지 않는다. 애플리케이션의 Jackson `ObjectMapper`를 주입받으며 별도 전역 mapper를 생성하지 않는다.
 
-검토안:
+## 자동 구성 back-off
 
-- `JwtClaimsCustomizer` interface 제공
-- token 생성 시 추가 claims를 받을 수 있는 overload 추가
-- 기본 claim 이름은 상수로 공개하거나 문서화
+기본 구성은 필요한 classpath와 Bean이 있을 때만 활성화된다.
 
-주의:
+- Gateway의 JWT 설정과 `AccessTokenVerifierPort`
+- 인증 서버의 issuer/refresh verifier, token ID generator와 current time Port
+- 필터와 독립적인 보안 Application 오류 mapping/message provider
+- JWT converter/filter
+- 보안 error provider/handler/response Adapter
+- `SecurityFilterChain`
+- `CorsConfigurationSource`
 
-- refresh token 저장 모듈은 `jti`, `sub`, 만료 시각에 의존하므로 이 계약은 깨면 안 된다.
+소비자가 동일 역할 Bean을 등록하면 기본 Bean은 생성되지 않는다.
 
-### 4단계: SecurityFilterChain 자동 등록 조건 문서화 및 보강
+`security-jwt-issuer`와 `security-jpa`가 함께 있으면 기본 발급·refresh 검증·폐기 UseCase가 연결된다. `RotatingTokenIssuerPort`와 `RefreshSessionTokenVerifierPort`가 있으면 rotation이, `RefreshSessionCleanupPort`가 있으면 cleanup이 각각 조건부로 추가된다.
 
-현재 `@ConditionalOnMissingBean(SecurityFilterChain.class)` 정책은 유지한다.
+## 사용
 
-보강할 것:
-
-- 소비 프로젝트가 직접 `SecurityFilterChain`을 등록하면 기본 filter chain은 등록되지 않음
-- public endpoint 기본값과 추가 방식 문서화
-- Swagger 경로 기본 포함 여부를 모듈 목표에 맞게 재검토
-
-### 5단계: auditor 타입 정렬
-
-상태: 완료
-
-JPA 모듈 방향과 맞춰 `AuditorAware<String>`로 통일한다.
-
-반영 내용:
-
-- `SecurityAuditorAware`가 `String` 반환
-- `systemUserId`도 문자열 저장 기준으로 정리
-
-### 6단계: 테스트 보강
-
-테스트 대상:
-
-- JWT access/refresh 발급과 검증
-- 만료 토큰
-- access/refresh category 혼용 방지
-- 잘못된 role, subject, jti
-- 401/403 응답의 `ProblemDetail` 계약
-- custom `SecurityFilterChain` 등록 시 기본 filter chain 미등록
-- CORS wildcard와 credentials 정책
-
-## 사용 예시
+API Gateway:
 
 ```gradle
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'com.dochiri:dochiri-security:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-gateway-security-starter:0.0.1-SNAPSHOT'
 }
 ```
 
-```yaml
-jwt:
-  secret: test-secret-key-that-is-at-least-32-characters-long
-  access-expiration: 3600000
-  refresh-expiration: 604800000
+인증 서버:
 
-security:
-  public-endpoints:
-    - /api/public/**
-    - /api/auth/**
-  system-user-id: 0
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-auth-server-starter:0.0.1-SNAPSHOT'
+}
 ```
 
-## 완료 기준
+개별 Adapter 선택:
 
-- JWT 설정 단위가 명확하다.
-- security 응답 계약이 error-handling 응답과 어긋나지 않는다.
-- 소비 프로젝트가 기본 filter chain을 쉽게 대체할 수 있다.
-- JPA auditing 타입과 충돌하지 않는다.
-- `./gradlew :modules:security:test`가 통과한다.
+```gradle
+dependencies {
+    implementation 'com.dochiri:dochiri-security-jwt:0.0.1-SNAPSHOT'
+    implementation 'com.dochiri:dochiri-security-webmvc:0.0.1-SNAPSHOT'
+    // 인증 서버에만 security-jwt-issuer와 security-jpa 추가
+}
+```
+
+## 마이그레이션
+
+| 제거된 계약 | 대체 계약 |
+| --- | --- |
+| `JwtProvider`, `JwtTokenGenerator` | 역할별 token Port와 `IssueTokensUseCase` |
+| public `Claims` | `DecodedAccessToken`, `DecodedRefreshToken` |
+| token별 저장 모델 | `RefreshSession`과 안정적인 `sid` |
+| `Long userId` | `AuthenticationSubject(String)` |
+| `security.public-endpoints` | `@PublicApi` |
+| Swagger 항상 공개 | `security.swagger-public=false` 기본값 |
+| millisecond expiration | `jwt.*-token-ttl` `Duration` |
+| 별도 `SecurityResponseWriter` | `SecurityErrorResponsePort`와 공통 ProblemDetail factory |
+
+## 검증
+
+```bash
+./gradlew :modules:security-domain:test
+./gradlew :modules:security-application:test
+./gradlew :modules:security-jwt:test
+./gradlew :modules:security-jwt-issuer:test
+./gradlew :modules:security-webmvc:test
+./gradlew :modules:security:webMvcSmokeTest
+./gradlew :modules:gateway-security-starter:test
+./gradlew :modules:auth-server-starter:test
+```
+
+소비자 스모크 테스트는 Spring Data가 없는 classpath에서 context 기동, `@PublicApi`, JWT 인증, 문자열 subject, 401/403 공통 계약, Swagger 기본 비공개를 검증한다.
