@@ -1,0 +1,10 @@
+description = 'security-error-webmvc-adapter-module'
+
+dependencies {
+    api project(':modules:security-application')
+    api project(':modules:error-handling')
+
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework.security:spring-security-core'
+    implementation 'org.springframework:spring-web'
+}

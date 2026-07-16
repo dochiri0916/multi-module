@@ -1,0 +1,9 @@
+description = 'jpa-auditing-module'
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testRuntimeOnly 'com.h2database:h2'
+}

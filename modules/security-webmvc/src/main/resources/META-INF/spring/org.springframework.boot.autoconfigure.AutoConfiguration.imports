@@ -1,0 +1,4 @@
+com.dochiri.security.adapter.in.web.configuration.SecurityErrorAutoConfiguration
+com.dochiri.security.adapter.in.web.configuration.JwtWebAuthenticationAutoConfiguration
+com.dochiri.security.adapter.in.web.configuration.CorsAutoConfiguration
+com.dochiri.security.adapter.in.web.configuration.SecurityFilterChainAutoConfiguration

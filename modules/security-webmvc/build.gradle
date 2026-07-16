@@ -1,0 +1,17 @@
+description = 'security-webmvc-adapter-module'
+
+dependencies {
+    api project(':modules:security-application')
+    api project(':modules:security-error-webmvc')
+    api project(':modules:error-handling')
+    api 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework:spring-webmvc'
+    implementation 'tools.jackson.core:jackson-databind'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api'
+    testImplementation 'jakarta.servlet:jakarta.servlet-api'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+}

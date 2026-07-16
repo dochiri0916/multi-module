@@ -1,0 +1,7 @@
+description = 'security-application-module'
+
+dependencies {
+    api project(':modules:security-domain')
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-tx'
+}

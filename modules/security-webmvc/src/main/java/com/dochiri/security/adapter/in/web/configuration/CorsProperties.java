@@ -1,0 +1,17 @@
+package com.dochiri.security.adapter.in.web.configuration;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.util.List;
+
+@ConfigurationProperties(prefix = "cors")
+public record CorsProperties(List<String> allowedOrigins) {
+
+    public CorsProperties {
+        allowedOrigins = allowedOrigins == null ? List.of() : List.copyOf(allowedOrigins);
+    }
+
+    public boolean hasWildcardOrigin() {
+        return allowedOrigins.contains("*");
+    }
+}

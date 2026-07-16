@@ -1,10 +1,11 @@
-description = 'error-handling-module'
+description = 'error-handling-webmvc-module'
 
 dependencies {
     api 'org.springframework:spring-web'
     api 'org.springframework:spring-webmvc'
     api 'jakarta.servlet:jakarta.servlet-api'
     api 'jakarta.validation:jakarta.validation-api'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
     compileOnly 'org.slf4j:slf4j-api'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc'
     testImplementation 'org.springframework.boot:spring-boot-starter-validation'

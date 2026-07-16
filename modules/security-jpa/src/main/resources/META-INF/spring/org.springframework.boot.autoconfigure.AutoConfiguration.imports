@@ -1,1 +1,5 @@
-com.dochiri.security.jpa.configuration.SecurityJpaAutoConfiguration
+com.dochiri.security.adapter.out.persistence.configuration.SecurityAuditAutoConfiguration
+com.dochiri.security.adapter.out.persistence.configuration.SecurityJpaAutoConfiguration
+com.dochiri.security.adapter.out.persistence.configuration.SecurityUseCaseAutoConfiguration
+com.dochiri.security.adapter.out.persistence.configuration.SecurityRotationUseCaseAutoConfiguration
+com.dochiri.security.adapter.out.persistence.configuration.SecurityCleanupUseCaseAutoConfiguration

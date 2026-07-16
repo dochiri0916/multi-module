@@ -1,0 +1,14 @@
+description = 'gateway-security-starter-aggregator-module'
+
+dependencies {
+    api project(':modules:security-jwt')
+    api project(':modules:security-webmvc')
+    api project(':modules:error-handling')
+    api project(':modules:time')
+    api 'org.springframework.boot:spring-boot-starter-webmvc'
+
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+    testImplementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    testRuntimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    testRuntimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+}

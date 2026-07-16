@@ -1,12 +1,18 @@
 description = 'security-jpa-module'
 
 dependencies {
-    api project(':modules:jpa')
-    api project(':modules:security')
-    implementation project(':modules:time')
+    api project(':modules:security-application')
+    api project(':modules:jpa-auditing')
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    implementation 'org.springframework.boot:spring-boot-flyway'
+    implementation 'org.springframework.security:spring-security-core'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+    runtimeOnly 'com.mysql:mysql-connector-j'
 
+    testImplementation project(':modules:security-jwt-issuer')
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
     testRuntimeOnly 'com.h2database:h2'
 }

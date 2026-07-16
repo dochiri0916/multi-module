@@ -1,7 +1,7 @@
 package com.example.securityjpa;
 
-import com.dochiri.security.jwt.JwtPrincipal;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,13 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "spring.datasource.url=jdbc:h2:mem:securityaudit;DB_CLOSE_DELAY=-1",
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "spring.datasource.username=sa",
+                "spring.flyway.enabled=false",
                 "spring.jpa.hibernate.ddl-auto=create-drop",
                 "spring.jpa.open-in-view=false",
-                "time.timezone=Asia/Seoul",
-                "jwt.secret=test-secret-key-that-is-at-least-32-characters-long",
-                "jwt.access-expiration=3600000",
-                "jwt.refresh-expiration=604800000",
-                "security.system-user-id=99"
+                "security.audit.system-subject=system-99"
         }
 )
 class JpaSecurityAuditingIntegrationTest {
@@ -41,42 +38,55 @@ class JpaSecurityAuditingIntegrationTest {
     }
 
     @Test
+    @DisplayName("인증 정보가 없으면 설정한 시스템 subject를 감사자 값으로 저장한다")
     void 인증정보가_없으면_security_systemUserId가_auditor로_사용된다() {
-        AuditedSecurityEntity entity = repository.saveAndFlush(new AuditedSecurityEntity("system"));
+        // given
+        AuditedSecurityEntity entity = new AuditedSecurityEntity("system");
 
-        assertThat(entity.getCreatedBy()).isEqualTo("99");
+        // when
+        AuditedSecurityEntity saved = repository.saveAndFlush(entity);
+
+        // then
+        assertThat(saved.getCreatedBy()).isEqualTo("system-99");
     }
 
     @Test
+    @DisplayName("인증이면 문자열 subject를 생성 감사자 값으로 저장한다")
     void JwtPrincipal_인증이면_userId가_createdBy에_반영된다() {
-        authenticate(123L);
+        // given
+        authenticate("member-123");
+        AuditedSecurityEntity entity = new AuditedSecurityEntity("authenticated");
 
-        AuditedSecurityEntity entity = repository.saveAndFlush(new AuditedSecurityEntity("authenticated"));
+        // when
+        AuditedSecurityEntity saved = repository.saveAndFlush(entity);
 
-        assertThat(entity.getCreatedBy()).isEqualTo("123");
+        // then
+        assertThat(saved.getCreatedBy()).isEqualTo("member-123");
     }
 
     @Test
+    @DisplayName("엔티티를 수정하면 현재 인증 subject를 수정 감사자 값으로 저장한다")
     void 수정하면_인증된_userId가_updatedBy에_반영된다() {
-        authenticate(123L);
+        // given
+        authenticate("member-123");
         AuditedSecurityEntity created = repository.saveAndFlush(new AuditedSecurityEntity("before"));
         Instant createdAt = created.getCreatedAt();
-
-        authenticate(456L);
+        authenticate("member-456");
         AuditedSecurityEntity entity = repository.findById(created.getId()).orElseThrow();
         entity.rename("after");
 
+        // when
         AuditedSecurityEntity updated = repository.saveAndFlush(entity);
 
+        // then
         assertThat(updated.getUpdatedAt()).isNotNull();
         assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(createdAt);
-        assertThat(updated.getUpdatedBy()).isEqualTo("456");
+        assertThat(updated.getUpdatedBy()).isEqualTo("member-456");
     }
 
-    private void authenticate(Long userId) {
-        JwtPrincipal principal = new JwtPrincipal(userId, "USER");
+    private void authenticate(String subject) {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                principal,
+                subject,
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );

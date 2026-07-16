@@ -1,8 +1,9 @@
 package com.dochiri.errorhandling;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
@@ -18,23 +19,34 @@ import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
+@RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private final ApiProblemDetailFactory problemDetailFactory;
+    private final ApiExceptionMapper exceptionMapper;
+    private final ApiErrorMessageCatalog messageCatalog;
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUncaughtException(Exception exception, HttpServletRequest request) {
-        log.error("미처리 예외가 발생했습니다. uri={}, method={}", request.getRequestURI(), request.getMethod(), exception);
-        return ResponseEntity
-                .status(CommonErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
-                .body(ProblemDetails.internalServerError(new ServletWebRequest(request)));
+        WebRequest webRequest = new ServletWebRequest(request);
+        if (exception instanceof RuntimeException runtimeException) {
+            return exceptionMapper.map(runtimeException)
+                    .map(mappedError -> responseFor(mappedError, webRequest))
+                    .orElseGet(() -> unexpectedResponse(exception, request, webRequest));
+        }
+        return unexpectedResponse(exception, request, webRequest);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -42,26 +54,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             ConstraintViolationException exception,
             HttpServletRequest request
     ) {
-        log.warn("요청 값 검증에 실패했습니다. uri={}, method={}, message={}",
-                request.getRequestURI(), request.getMethod(), exception.getMessage());
-        return ResponseEntity
-                .status(CommonErrorCode.VALIDATION_ERROR.getHttpStatus())
-                .body(ProblemDetails.validationError(
-                        fieldErrorsFromConstraintViolations(exception.getConstraintViolations()),
-                        new ServletWebRequest(request)
-                ));
+        log.warn("요청 값 검증에 실패했습니다. uri={}, method={}, errorCount={}",
+                request.getRequestURI(), request.getMethod(), exception.getConstraintViolations().size());
+        ProblemDetail body = validationProblemDetail(
+                fieldErrorsFromConstraintViolations(exception.getConstraintViolations()),
+                new ServletWebRequest(request)
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(BindException.class)
     public ResponseEntity<Object> handleBindException(BindException exception, HttpServletRequest request) {
-        log.warn("요청 값 바인딩 검증에 실패했습니다. uri={}, method={}, message={}",
-                request.getRequestURI(), request.getMethod(), exception.getMessage());
-        return ResponseEntity
-                .status(CommonErrorCode.VALIDATION_ERROR.getHttpStatus())
-                .body(ProblemDetails.validationError(
-                        fieldErrorsFromBinding(exception.getBindingResult().getAllErrors()),
-                        new ServletWebRequest(request)
-                ));
+        log.warn("요청 값 바인딩 검증에 실패했습니다. uri={}, method={}, errorCount={}",
+                request.getRequestURI(), request.getMethod(), exception.getBindingResult().getErrorCount());
+        ProblemDetail body = validationProblemDetail(
+                fieldErrorsFromBinding(exception.getBindingResult().getAllErrors()),
+                new ServletWebRequest(request)
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @Override
@@ -71,7 +81,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request
     ) {
-        ProblemDetail body = ProblemDetails.validationError(
+        ProblemDetail body = validationProblemDetail(
                 fieldErrorsFromBinding(exception.getBindingResult().getAllErrors()),
                 request
         );
@@ -85,7 +95,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request
     ) {
-        ProblemDetail body = ProblemDetails.validationError(fieldErrorsFromMethodValidation(exception), request);
+        ProblemDetail body = validationProblemDetail(fieldErrorsFromMethodValidation(exception), request);
         return handleExceptionInternal(exception, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 
@@ -97,17 +107,73 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request
     ) {
-        if (body instanceof ProblemDetail problemDetail) {
-            body = ProblemDetails.normalize(problemDetail, statusCode, request);
+        Object responseBody = body;
+        HttpStatusCode responseStatus = statusCode;
+        if (!hasApiCode(body)) {
+            MappedApiError mappedError = globalMappedError(globalErrorCodeFor(statusCode));
+            responseBody = problemDetail(mappedError, request);
+            responseStatus = mappedError.mapping().status();
         }
 
-        if (statusCode.is5xxServerError()) {
-            log.error("예외를 처리했습니다. status={}, message={}", statusCode.value(), exception.getMessage(), exception);
-            return super.handleExceptionInternal(exception, body, headers, statusCode, request);
+        if (responseStatus.is5xxServerError()) {
+            log.error("예외를 처리했습니다. status={}, exception={}",
+                    responseStatus.value(), exception.getClass().getName(), exception);
+        } else {
+            log.warn("예외를 처리했습니다. status={}, exception={}",
+                    responseStatus.value(), exception.getClass().getSimpleName());
         }
+        return super.handleExceptionInternal(exception, responseBody, headers, responseStatus, request);
+    }
 
-        log.warn("예외를 처리했습니다. status={}, message={}", statusCode.value(), exception.getMessage());
-        return super.handleExceptionInternal(exception, body, headers, statusCode, request);
+    private ResponseEntity<Object> unexpectedResponse(
+            Exception exception,
+            HttpServletRequest request,
+            WebRequest webRequest
+    ) {
+        log.error("미처리 예외가 발생했습니다. uri={}, method={}",
+                request.getRequestURI(), request.getMethod(), exception);
+        return responseFor(globalMappedError(GlobalErrorCode.INTERNAL_SERVER_ERROR), webRequest);
+    }
+
+    private ResponseEntity<Object> responseFor(MappedApiError mappedError, WebRequest request) {
+        return ResponseEntity
+                .status(mappedError.mapping().status())
+                .body(problemDetail(mappedError, request));
+    }
+
+    private ProblemDetail validationProblemDetail(List<FieldErrorDetail> fieldErrors, WebRequest request) {
+        MappedApiError mappedError = globalMappedError(GlobalErrorCode.VALIDATION_ERROR);
+        ApiErrorMessage message = messageCatalog.messageFor(mappedError.code());
+        return problemDetailFactory.createValidation(mappedError, message, fieldErrors, request);
+    }
+
+    private ProblemDetail problemDetail(MappedApiError mappedError, WebRequest request) {
+        ApiErrorMessage message = messageCatalog.messageFor(mappedError.code());
+        return problemDetailFactory.create(mappedError, message, request);
+    }
+
+    private MappedApiError globalMappedError(GlobalErrorCode errorCode) {
+        ApiErrorCode code = ApiErrorCode.from(errorCode);
+        return MappedApiError.from(code, exceptionMapper.mappingFor(code));
+    }
+
+    private GlobalErrorCode globalErrorCodeFor(HttpStatusCode statusCode) {
+        return switch (statusCode.value()) {
+            case 404 -> GlobalErrorCode.NOT_FOUND;
+            case 405 -> GlobalErrorCode.METHOD_NOT_ALLOWED;
+            case 415 -> GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE;
+            default -> statusCode.is5xxServerError()
+                    ? GlobalErrorCode.INTERNAL_SERVER_ERROR
+                    : GlobalErrorCode.BAD_REQUEST;
+        };
+    }
+
+    private boolean hasApiCode(Object body) {
+        if (!(body instanceof ProblemDetail problemDetail)) {
+            return false;
+        }
+        Map<String, Object> properties = problemDetail.getProperties();
+        return properties != null && properties.containsKey(ApiProblemDetailFactory.CODE);
     }
 
     private List<FieldErrorDetail> fieldErrorsFromBinding(List<ObjectError> errors) {
@@ -120,15 +186,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (error instanceof FieldError fieldError) {
             return new FieldErrorDetail(
                     fieldError.getField(),
-                    fieldError.getRejectedValue(),
                     fieldError.getDefaultMessage(),
                     fieldError.getCode()
             );
         }
-
         return new FieldErrorDetail(
                 error.getObjectName(),
-                null,
                 error.getDefaultMessage(),
                 error.getCode()
         );
@@ -150,7 +213,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             for (MessageSourceResolvable error : result.getResolvableErrors()) {
                 fieldErrors.add(new FieldErrorDetail(
                         field,
-                        result.getArgument(),
                         error.getDefaultMessage(),
                         messageCode(error)
                 ));
@@ -166,7 +228,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         for (ConstraintViolation<?> violation : constraintViolations) {
             fieldErrors.add(new FieldErrorDetail(
                     violation.getPropertyPath().toString(),
-                    violation.getInvalidValue(),
                     violation.getMessage(),
                     violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName()
             ));
@@ -197,12 +258,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 return requestParam.value();
             }
         }
-
         return result.getMethodParameter().getParameterName();
     }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
-
 }

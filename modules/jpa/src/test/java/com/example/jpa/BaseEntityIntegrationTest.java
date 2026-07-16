@@ -1,6 +1,7 @@
 package com.example.jpa;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.open-in-view=false",
         "spring.jpa.show-sql=false",
-        "security.system-user-id=7"
+        "dochiri.jpa.audit.system-subject=system-7"
 })
 class BaseEntityIntegrationTest {
 
@@ -28,25 +29,34 @@ class BaseEntityIntegrationTest {
     private JPAQueryFactory jpaQueryFactory;
 
     @Test
+    @DisplayName("security 모듈 없이 fallback 감사자와 QueryDSL을 함께 구성한다")
     void security모듈이_없어도_createdBy가_fallback_auditor로_채워지고_queryFactory가_등록된다() {
+        // given
         AuditableEntity entity = auditableEntityRepository.saveAndFlush(new AuditableEntity("auditor"));
 
+        // when
+        String createdBy = entity.getCreatedBy();
+
+        // then
         assertThat(jpaQueryFactory).isNotNull();
         assertThat(entity.getCreatedAt()).isNotNull();
-        assertThat(entity.getCreatedBy()).isEqualTo("7");
+        assertThat(createdBy).isEqualTo("system-7");
     }
 
     @Test
+    @DisplayName("BaseEntity를 수정하면 수정 시각과 fallback 감사자를 기록한다")
     void 수정하면_updatedAt과_updatedBy가_채워진다() {
+        // given
         AuditableEntity created = auditableEntityRepository.saveAndFlush(new AuditableEntity("before"));
-
         AuditableEntity entity = auditableEntityRepository.findById(created.getId()).orElseThrow();
         entity.rename("after");
 
+        // when
         AuditableEntity updated = auditableEntityRepository.saveAndFlush(entity);
 
+        // then
         assertThat(updated.getUpdatedAt()).isNotNull();
-        assertThat(updated.getUpdatedBy()).isEqualTo("7");
+        assertThat(updated.getUpdatedBy()).isEqualTo("system-7");
     }
 
     @SpringBootApplication

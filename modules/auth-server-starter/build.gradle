@@ -1,0 +1,11 @@
+description = 'auth-server-starter-aggregator-module'
+
+dependencies {
+    api project(':modules:api-starter')
+    api project(':modules:security-error-webmvc')
+    api project(':modules:security-jwt-issuer')
+    api project(':modules:security-jpa')
+
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+}
