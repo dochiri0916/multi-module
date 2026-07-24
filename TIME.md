@@ -37,9 +37,11 @@ Clock.system(ZoneId.of(properties.timezone()))
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-time:1.0.0'
+    implementation 'com.dochiri:dochiri-service-starter:1.0.0'
 }
 ```
+
+`msa-gateway-starter`와 `msa-auth-starter`에도 시간 모듈이 전이 의존성으로 포함된다. 내부 `time` artifact를 별도로 선언하지 않는다.
 
 시간에 의존하는 코드에는 `Clock`을 생성하지 않고 주입한다.
 

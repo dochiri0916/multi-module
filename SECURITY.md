@@ -1,6 +1,6 @@
 # Security Modules
 
-보안 기능은 순수 Domain/Application과 Gateway 검증, 인증 서버 발급/JPA Adapter로 분리한다. `modules:security`는 기존 사용자를 위해 `security-jwt`와 `security-webmvc`를 묶는 JPA 없는 호환 aggregator다.
+보안 기능은 순수 Domain/Application과 Gateway 검증, 인증 서버 발급/JPA Adapter로 분리한다. 소비 프로젝트는 내부 보안 모듈을 직접 조합하지 않고 역할별 공개 starter를 사용한다.
 
 ## 모듈 책임
 
@@ -8,22 +8,21 @@
 | --- | --- |
 | `security-domain` | `RefreshSession` Aggregate, `AuthenticationSubject`, `AuthenticationRole`, token/session VO, Domain 예외 |
 | `security-application` | 발급·검증·회전·폐기·정리 UseCase와 token codec·repository·시간·ID Port |
-| `security-error-webmvc` | 보안 Application 예외와 401/403의 공통 API 오류 mapping/message provider |
+| `security-error-webmvc` | 보안 Application 예외를 RFC 9457 ProblemDetail로 변환하는 Context Advice |
 | `security-jwt` | Gateway용 JJWT `AccessTokenVerifierPort` 구현 |
 | `security-jwt-issuer` | 인증 서버용 발급·회전·refresh 검증·시간·token ID Port 구현 |
 | `security-webmvc` | 인증 filter/principal, `@PublicApi`, CORS/filter chain, 공통 401/403 Adapter |
-| `security` | JWT + WebMVC aggregator |
-| `gateway-security-starter` | Gateway 검증 조합. DB와 발급 기능 없음 |
-| `auth-server-starter` | 인증 서버 발급·refresh session·MySQL 조합. Access Token filter 없음 |
+| `msa-gateway-starter` | Gateway 검증 조합. DB와 발급 기능 없음 |
+| `msa-auth-starter` | 인증 서버 발급·refresh session·MySQL 조합. Access Token filter 없음 |
 
 ```text
 security-domain <- security-application <- security-jwt             (access 검증)
                                       \--- security-jwt-issuer      (발급/refresh 검증)
-                                      \--- security-error-webmvc -> error-handling
+                                      \--- security-error-webmvc   (Context Advice)
                                       \--- security-webmvc ------> security-error-webmvc
 ```
 
-`security` runtime classpath에는 Spring Data와 JPA가 없다. refresh token 저장과 Security auditing이 필요하면 `security-jpa`를 추가한다.
+`msa-gateway-starter` runtime classpath에는 Spring Data와 JPA가 없다. refresh token 저장과 Security auditing은 `msa-auth-starter`에만 포함된다.
 
 ## 공개 Domain 계약
 
@@ -136,22 +135,20 @@ public record JwtPrincipal(
 
 ## 401/403 오류 계약
 
-`security-error-webmvc`는 보안 Application 예외와 401/403 code의 mapping/message provider만 제공한다. 따라서 인증 서버는 refresh 오류를 공통 계약으로 변환하면서도 JWT filter나 `SecurityFilterChain`을 받지 않는다. Gateway의 Spring Security handler는 `SecurityErrorResponsePort`만 호출하고, 기본 `SecurityProblemDetailResponseAdapter`가 `error-handling`의 mapper, 한국어 message catalog, `ApiProblemDetailFactory`를 사용한다.
+`security-error-webmvc`는 보안 Application 예외를 Spring 공식 `ProblemDetail`로 변환하는 Context Advice만 제공한다. 따라서 인증 서버는 refresh 오류를 HTTP 응답으로 변환하면서도 JWT filter나 `SecurityFilterChain`을 받지 않는다. Gateway의 Spring Security handler는 `SecurityErrorResponsePort`만 호출하고, 기본 `SecurityProblemDetailResponseAdapter`가 표준 필드를 직접 작성한다.
 
-| 상황 | code | status | type |
-| --- | --- | ---: | --- |
-| 인증 필요 | `SECURITY.AUTHENTICATION_REQUIRED` | 401 | `/problems/unauthorized` |
-| 접근 거부 | `SECURITY.ACCESS_DENIED` | 403 | `/problems/forbidden` |
+| 상황 | status | type |
+| --- | ---: | --- |
+| 인증 필요 | 401 | `/problems/authentication-required` |
+| 접근 거부 | 403 | `/problems/access-denied` |
 
 ```json
 {
-  "type": "/problems/unauthorized",
+  "type": "/problems/authentication-required",
   "title": "인증 필요",
   "status": 401,
   "detail": "인증이 필요합니다.",
-  "instance": "/api/me",
-  "code": "SECURITY.AUTHENTICATION_REQUIRED",
-  "traceId": "request-401"
+  "instance": "/api/me"
 }
 ```
 
@@ -163,9 +160,9 @@ public record JwtPrincipal(
 
 - Gateway의 JWT 설정과 `AccessTokenVerifierPort`
 - 인증 서버의 issuer/refresh verifier, token ID generator와 current time Port
-- 필터와 독립적인 보안 Application 오류 mapping/message provider
+- 필터와 독립적인 보안 Application 예외 처리 Advice
 - JWT converter/filter
-- 보안 error provider/handler/response Adapter
+- 보안 exception handler와 filter response Adapter
 - `SecurityFilterChain`
 - `CorsConfigurationSource`
 
@@ -179,7 +176,7 @@ API Gateway:
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-gateway-security-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-msa-gateway-starter:1.0.0'
 }
 ```
 
@@ -187,19 +184,11 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-msa-auth-starter:1.0.0'
 }
 ```
 
-개별 Adapter 선택:
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-security-jwt:1.0.0'
-    implementation 'com.dochiri:dochiri-security-webmvc:1.0.0'
-    // 인증 서버에만 security-jwt-issuer와 security-jpa 추가
-}
-```
+`security-jwt`, `security-webmvc`, `security-jwt-issuer`, `security-jpa`는 두 starter를 구성하는 내부 artifact이며 소비 프로젝트가 직접 선택하지 않는다.
 
 ## 마이그레이션
 
@@ -222,9 +211,8 @@ dependencies {
 ./gradlew :modules:security-jwt:test
 ./gradlew :modules:security-jwt-issuer:test
 ./gradlew :modules:security-webmvc:test
-./gradlew :modules:security:webMvcSmokeTest
-./gradlew :modules:gateway-security-starter:test
-./gradlew :modules:auth-server-starter:test
+./gradlew :modules:msa-gateway-starter:test
+./gradlew :modules:msa-auth-starter:test
 ```
 
 소비자 스모크 테스트는 Spring Data가 없는 classpath에서 context 기동, `@PublicApi`, JWT 인증, 문자열 subject, 401/403 공통 계약, Swagger 기본 비공개를 검증한다.

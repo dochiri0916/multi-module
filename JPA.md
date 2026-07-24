@@ -1,6 +1,6 @@
 # JPA Modules
 
-JPA 공통 기능은 auditing과 QueryDSL의 선택 단위를 분리한다. `modules:jpa`는 두 기능을 함께 쓰는 기존 소비자를 위한 aggregator다.
+JPA 공통 기능은 내부적으로 auditing과 QueryDSL 모듈로 분리한다. 소비 프로젝트에는 두 기능을 조합한 `service-starter`만 공개한다.
 
 ## 모듈
 
@@ -10,7 +10,7 @@ JPA 공통 기능은 auditing과 QueryDSL의 선택 단위를 분리한다. `mod
 | `jpa-querydsl` | `JPAQueryFactory` 자동 구성 | Spring Data JPA, QueryDSL JPA |
 | `jpa` | 위 두 모듈 aggregator | 두 모듈 전체 |
 
-QueryDSL이 필요 없다면 `dochiri-jpa-auditing`만 의존한다.
+세 JPA 모듈은 starter 구성과 독립 테스트를 위한 내부 모듈이며 직접 소비 계약이 아니다.
 
 ## JPA auditing
 
@@ -45,11 +45,7 @@ AuditorAware<String> serviceAuditor() {
 
 `jpa-querydsl`은 `EntityManager`가 있고 사용자 `JPAQueryFactory`가 없을 때 기본 factory를 등록한다.
 
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-jpa-querydsl:1.0.0'
-}
-```
+QueryDSL 자동 구성은 `dochiri-service-starter`를 통해 제공된다.
 
 소비 프로젝트에서 Q class 생성이 필요하면 해당 프로젝트의 Entity source set에 QueryDSL annotation processor를 설정한다. 모듈의 factory 자동 구성은 소비 프로젝트의 Q class 생성 책임을 대신하지 않는다.
 
@@ -64,25 +60,15 @@ JPAQueryFactory applicationQueryFactory(EntityManager entityManager) {
 
 이 경우 기본 Bean은 등록되지 않는다.
 
-## 선택 예시
-
-auditing만 사용:
+## 사용
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-jpa-auditing:1.0.0'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation 'com.dochiri:dochiri-service-starter:1.0.0'
 }
 ```
 
-auditing과 QueryDSL을 함께 사용:
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-jpa:1.0.0'
-    runtimeOnly 'com.mysql:mysql-connector-j'
-}
-```
+이 공개 starter가 auditing, QueryDSL, Connector/J과 Flyway를 함께 제공한다. 내부 JPA artifact를 소비 프로젝트에서 개별 조합하지 않는다.
 
 ## Entity 사용 원칙
 

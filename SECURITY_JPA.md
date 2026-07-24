@@ -22,18 +22,11 @@ Application이 소유하는 계약은 다음과 같다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-msa-auth-starter:1.0.0'
 }
 ```
 
-Adapter만 선택하려면 다음 두 artifact를 사용한다.
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-security-jwt-issuer:1.0.0'
-    implementation 'com.dochiri:dochiri-security-jpa:1.0.0'
-}
-```
+`security-jwt-issuer`와 `security-jpa`는 `msa-auth-starter`가 조합하는 내부 artifact이며 소비 프로젝트가 직접 선언하지 않는다.
 
 `security-jpa`가 Connector/J, Flyway core와 MySQL 지원을 모두 runtime 의존성으로 제공한다. 인증 애플리케이션은 인증 DB 접속 정보와 JWT secret만 환경 변수로 제공한다.
 
@@ -168,7 +161,7 @@ Domain/Application 예외는 HTTP, JPA, JJWT 타입을 포함하지 않는다. �
 
 ```bash
 ./gradlew :modules:security-jpa:test
-./gradlew :modules:auth-server-starter:test
+./gradlew :modules:msa-auth-starter:test
 ./gradlew check -PchangedCoverageBaseRef=origin/main
 ```
 

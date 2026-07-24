@@ -1,6 +1,6 @@
 # Dochiri Multi-Module Library
 
-Java 21과 Spring Boot 4 기반 API 서비스에서 재사용할 보안, 오류 응답, JPA, 시간 설정을 제공하는 멀티 모듈 라이브러리입니다. refresh token 영역은 Hexagonal Architecture와 DDD 경계로 나뉘며, 기술 모듈은 필요한 artifact만 선택할 수 있습니다.
+Java 21과 Spring Boot 4 기반 API 서비스에서 재사용할 보안, 오류 응답, JPA, 시간 설정을 제공하는 멀티 모듈 라이브러리입니다. refresh token 영역은 Hexagonal Architecture와 DDD 경계로 나뉘며, 소비 프로젝트는 역할에 맞는 공개 starter 하나만 선택합니다.
 
 ## 요구 사항
 
@@ -9,28 +9,27 @@ Java 21과 Spring Boot 4 기반 API 서비스에서 재사용할 보안, 오류 
 - Spring Boot 4.0.3 dependency BOM을 사용합니다.
 - `security-jpa` 사용 시 MySQL 8.4 이상이 필요합니다. Connector/J은 starter가 제공합니다.
 
-## 모듈
+## 공개 Starter
 
 | artifactId | Gradle project | 책임 |
 | --- | --- | --- |
-| `dochiri-security-domain` | `modules:security-domain` | refresh session Aggregate와 보안 Value Object 및 Domain 예외 |
-| `dochiri-security-application` | `modules:security-application` | 발급·검증·회전·폐기·정리 UseCase와 Inbound/Outbound Port |
-| `dochiri-security-error-webmvc` | `modules:security-error-webmvc` | 필터와 분리된 보안 Application 예외·401/403 API 오류 catalog |
-| `dochiri-security-jwt` | `modules:security-jwt` | Gateway용 JJWT `AccessTokenVerifierPort` Adapter |
-| `dochiri-security-jwt-issuer` | `modules:security-jwt-issuer` | 인증 서버용 JWT 발급·회전·refresh 검증·시간·식별자 Adapter |
-| `dochiri-security-webmvc` | `modules:security-webmvc` | JWT 인증 필터, `@PublicApi`, 보안 설정, 공통 401/403 응답 |
-| `dochiri-security-jpa` | `modules:security-jpa` | MySQL refresh session JPA Adapter, Flyway migration, Security auditing |
-| `dochiri-security` | `modules:security` | JWT와 Web MVC를 묶는 JPA 없는 호환 aggregator |
-| `dochiri-jpa-auditing` | `modules:jpa-auditing` | `BaseEntity`, JPA auditing과 fallback auditor |
-| `dochiri-jpa-querydsl` | `modules:jpa-querydsl` | `JPAQueryFactory` 자동 구성 |
-| `dochiri-jpa` | `modules:jpa` | auditing과 QueryDSL을 묶는 호환 aggregator |
-| `dochiri-error-handling` | `modules:error-handling` | RFC 9457 Web MVC 오류 mapper/catalog/factory/handler |
-| `dochiri-time` | `modules:time` | 교체 가능한 `Clock`과 timezone 설정 |
-| `dochiri-api-starter` | `modules:api-starter` | JWT 없는 일반 서비스용 Web/JPA/MySQL/Flyway aggregator |
-| `dochiri-gateway-security-starter` | `modules:gateway-security-starter` | DB 없는 Gateway용 Access Token 검증 aggregator |
-| `dochiri-auth-server-starter` | `modules:auth-server-starter` | 인증 서버용 JWT 발급·refresh session·MySQL aggregator |
+| `dochiri-service-starter` | `modules:service-starter` | 모놀리식 및 일반 MSA 서비스용 Web/JPA/MySQL/Flyway 조합 |
+| `dochiri-msa-gateway-starter` | `modules:msa-gateway-starter` | DB 없는 MSA Gateway용 Access Token 검증 조합 |
+| `dochiri-msa-auth-starter` | `modules:msa-auth-starter` | MSA 인증 서버용 JWT 발급·refresh session·MySQL 조합 |
 
-`security`와 `jpa`는 기존 artifact 사용자를 위한 편의 aggregator입니다. 선택성을 우선하면 분리된 artifact를 직접 사용합니다.
+소비 프로젝트에 지원하는 직접 의존점은 위 세 개뿐입니다. `error-handling-starter`, `jpa-*`, `time`, `security-*`는 starter를 구성하는 내부 모듈이며 직접 사용 계약으로 문서화하지 않습니다.
+
+## 내부 모듈
+
+| Gradle project | 책임 |
+| --- | --- |
+| `modules:error-handling-starter` | Spring 공식 ProblemDetail fallback과 Web MVC·Bean Validation |
+| `modules:jpa`, `modules:jpa-auditing`, `modules:jpa-querydsl` | JPA auditing과 QueryDSL 자동 구성 |
+| `modules:time` | 교체 가능한 `Clock`과 timezone 설정 |
+| `modules:security-domain`, `modules:security-application` | 보안 Domain과 UseCase/Port |
+| `modules:security-error-webmvc`, `modules:security-webmvc` | 보안 예외와 필터 401/403 Web Adapter |
+| `modules:security-jwt`, `modules:security-jwt-issuer` | Access Token 검증과 인증 서버 token 발급 Adapter |
+| `modules:security-jpa` | refresh session MySQL Adapter와 migration |
 
 ## 의존 방향
 
@@ -42,14 +41,14 @@ security-application
       +-- security-jwt          (Access Token 검증)
       +-- security-jwt-issuer   (발급·Refresh Token 검증)
       +-- security-jpa ------> jpa-auditing
-      +-- security-error-webmvc ---> error-handling
+      +-- security-error-webmvc   (보안 Context Advice)
       +-- security-webmvc --------> security-error-webmvc
 
-security     -> security-jwt + security-webmvc
 jpa          -> jpa-auditing + jpa-querydsl
-api-starter  -> error-handling + jpa + time + Web MVC + MySQL/Flyway
-gateway-security-starter -> security-jwt + security-webmvc + error-handling + time
-auth-server-starter -> api-starter + security-error-webmvc + security-jwt-issuer + security-jpa
+error-handling-starter -> Web MVC + Bean Validation
+service-starter -> error-handling-starter + jpa + time + MySQL/Flyway
+msa-gateway-starter -> security-jwt + security-webmvc + error-handling-starter + time
+msa-auth-starter -> service-starter + security-error-webmvc + security-jwt-issuer + security-jpa
 ```
 
 - Domain은 Spring, JPA, Lombok, Adapter를 알지 못합니다.
@@ -63,7 +62,7 @@ auth-server-starter -> api-starter + security-error-webmvc + security-jwt-issuer
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-api-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-service-starter:1.0.0'
 }
 ```
 
@@ -79,7 +78,7 @@ API Gateway는 DB 없이 Access Token만 검증합니다.
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-gateway-security-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-msa-gateway-starter:1.0.0'
 }
 ```
 
@@ -93,7 +92,7 @@ Gateway에는 `AccessTokenVerifierPort`, JWT filter와 `SecurityFilterChain`만 
 
 ```gradle
 dependencies {
-    implementation 'com.dochiri:dochiri-auth-server-starter:1.0.0'
+    implementation 'com.dochiri:dochiri-msa-auth-starter:1.0.0'
 }
 ```
 
@@ -110,13 +109,7 @@ export SPRING_DATASOURCE_PASSWORD='secret'
 
 Gateway starter는 검증 결과를 `JwtPrincipal`로 Security Context에 저장합니다. 실제 downstream 전달은 사용하는 Gateway route 기술이 소유합니다. route filter는 외부 요청의 subject/role 헤더를 먼저 제거하고 검증된 값만 다시 넣어야 하며, 일반 서비스는 외부에서 직접 접근할 수 없도록 네트워크 정책이나 mTLS로 보호합니다. 주문 소유권 같은 도메인 권한 판단은 일반 서비스에 남깁니다.
 
-auditing만 필요한 서비스는 QueryDSL 없이 사용할 수 있습니다.
-
-```gradle
-dependencies {
-    implementation 'com.dochiri:dochiri-jpa-auditing:1.0.0'
-}
-```
+일반 서비스는 `service-starter` 하나로 JPA auditing과 QueryDSL 구성을 함께 받습니다. 내부 JPA 모듈을 직접 조합하는 방식은 지원하는 소비 계약이 아닙니다.
 
 ## 선택 설정
 
@@ -217,21 +210,23 @@ MeResponse me(@AuthenticationPrincipal JwtPrincipal principal) {
 
 ## 오류 응답
 
-Domain/Application 예외는 Spring Web을 모르는 plain unchecked exception입니다. 각 소비 Context의 Web Adapter가 `ErrorCodeMappingProvider`와 `ApiErrorMessageProvider`를 등록하면 공통 handler가 RFC 9457 응답으로 변환합니다.
+일반 서비스, Gateway, 인증 서버는 역할별 공개 starter를 의존하는 것만으로 오류 처리가 활성화됩니다. 내부 `error-handling-starter`를 별도로 선언하지 않습니다.
+
+별도 `@Import`, component scan, validation 구현체는 필요하지 않습니다. Spring MVC/Bean Validation 오류와 처리되지 않은 예외의 RFC 9457 응답이 자동 구성됩니다.
+
+Domain/Application 예외는 Spring Web을 모르는 plain unchecked exception입니다. 비즈니스 예외의 HTTP 의미는 소비 Context의 Web Adapter가 `@RestControllerAdvice`와 `@ExceptionHandler`로 직접 변환합니다. 공통 handler는 특정 비즈니스 예외를 import하지 않습니다.
 
 ```json
 {
-  "type": "/problems/unauthorized",
+  "type": "/problems/authentication-required",
   "title": "인증 필요",
   "status": 401,
   "detail": "인증이 필요합니다.",
-  "instance": "/api/me",
-  "code": "SECURITY.AUTHENTICATION_REQUIRED",
-  "traceId": "request-id"
+  "instance": "/api/me"
 }
 ```
 
-Validation 오류는 `field`, 안전한 `reason`, `messageCode`만 제공하며 rejected value, 비밀번호, token 원문을 응답이나 로그에 포함하지 않습니다. 자세한 확장 방법은 [ERROR_HANDLING.md](ERROR_HANDLING.md)를 참고하시기 바랍니다.
+Validation 오류는 Spring의 공식 `ResponseEntityExceptionHandler` 동작을 사용합니다. custom validation 원문이나 rejected value를 별도 확장 필드로 복사하지 않습니다. Context별 예제는 [ERROR_HANDLING.md](ERROR_HANDLING.md)를 참고하시기 바랍니다.
 
 ## MySQL refresh session migration
 
@@ -249,7 +244,7 @@ classpath:db/migration/dochiri-security/V20260715160000__create_refresh_sessions
 - session/token unique 제약과 전체 폐기·만료 정리에 필요한 index를 제공합니다.
 - JPA 객체 연관관계 없이 Aggregate 식별 값만 저장합니다.
 
-`security-jpa`와 `auth-server-starter`만 Flyway 보안 migration을 제공합니다. 일반 `api-starter`는 소비 서비스가 소유한 `db/migration`만 실행합니다. 운영에서는 `spring.jpa.hibernate.ddl-auto=validate`, JDBC session timezone UTC를 권장하며 Hibernate로 schema를 생성하지 않습니다.
+`security-jpa`와 `msa-auth-starter`만 Flyway 보안 migration을 제공합니다. 일반 `service-starter`는 소비 서비스가 소유한 `db/migration`만 실행합니다. 운영에서는 `spring.jpa.hibernate.ddl-auto=validate`, JDBC session timezone UTC를 권장하며 Hibernate로 schema를 생성하지 않습니다.
 
 정리 스케줄은 소비 애플리케이션이 소유합니다. 보관 기준과 batch 크기(1~1000)를 전달하면 한 batch만 삭제하고, 더 호출할 가능성을 결과로 알려줍니다.
 
@@ -276,8 +271,7 @@ CleanupRefreshSessionsResult cleanup = cleanupRefreshSessionsUseCase.execute(
 `check`는 다음을 포함합니다.
 
 - 전체 단위·통합·소비자 조합 테스트
-- JPA 없는 `security + WebMVC` 기동 스모크 테스트
-- JWT가 없는 `api-starter`, DB가 없는 `gateway-security-starter`, 인증 DB를 소유하는 `auth-server-starter` 소비자 스모크 테스트
+- JWT가 없는 `service-starter`, DB가 없는 `msa-gateway-starter`, 인증 DB를 소유하는 `msa-auth-starter` 소비자 스모크 테스트
 - Checkstyle, PMD, SpotBugs
 - 계층 및 모듈 의존 방향 검증
 - 한국어 `@DisplayName`과 given/when/then 테스트 규칙
@@ -285,6 +279,8 @@ CleanupRefreshSessionsResult cleanup = cleanupRefreshSessionsUseCase.execute(
 - 선택 시 변경 production 코드 90/85 line/branch coverage
 
 PIT 기준은 Domain/Application mutation score 80%, test strength 85%입니다. GitHub Actions는 변경 커버리지와 PIT까지 실행합니다.
+
+Maven Local에 배포한 실제 공개 좌표는 `tool-test-lab/starter-probe`에서 별도 소비자 빌드로 검증합니다. 이 probe는 프로젝트 의존성이 아니라 `com.dochiri:dochiri-service-starter:1.0.0`만 해석해 Web MVC, Validation, JPA 자동 구성과 ProblemDetail 응답을 확인합니다.
 
 ## 호환성 변경
 
@@ -297,14 +293,17 @@ PIT 기준은 Domain/Application mutation score 80%, test strength 85%입니다.
 - path 목록 기반 `security.public-endpoints`
 - millisecond 기반 `jwt.access-expiration`, `jwt.refresh-expiration`
 
-새 코드는 `AuthenticationSubject`, `*UseCase`, 역할별 token Port, Context error provider, `Duration` 설정을 사용합니다.
+새 코드는 `AuthenticationSubject`, `*UseCase`, 역할별 token Port, Context별 `@ExceptionHandler`, `Duration` 설정을 사용합니다.
 
 ## 로컬 publishing
 
-모든 모듈은 `java-library`와 `maven-publish`를 사용합니다.
+모든 내부 모듈은 공개 starter의 전이 의존성을 해석할 수 있도록 `java-library`와 `maven-publish`를 사용합니다.
 
 ```bash
 ./gradlew publishToMavenLocal
+
+cd /Users/seongbin/programming/laboratory/tool-test-lab
+./gradlew -p starter-probe clean test --refresh-dependencies
 ```
 
-artifact 좌표는 `com.dochiri:dochiri-{module}:1.0.0` 형식입니다.
+소비 프로젝트가 직접 사용하는 공개 좌표는 `dochiri-service-starter`, `dochiri-msa-gateway-starter`, `dochiri-msa-auth-starter` 세 개입니다. 나머지 좌표는 starter POM을 구성하는 내부 artifact입니다.
