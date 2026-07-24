@@ -1,1 +1,1 @@
-com.dochiri.security.adapter.in.web.configuration.SecurityErrorMappingAutoConfiguration
+com.dochiri.security.adapter.in.web.configuration.SecurityExceptionHandlerAutoConfiguration

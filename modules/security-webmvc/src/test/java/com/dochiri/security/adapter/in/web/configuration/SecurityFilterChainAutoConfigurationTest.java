@@ -16,18 +16,24 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
@@ -67,12 +73,16 @@ class SecurityFilterChainAutoConfigurationTest {
         // when
         MvcResult result = mockMvc.perform(get(endpoint))
                 .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("/problems/authentication-required"))
+                .andExpect(jsonPath("$.title").value("인증 필요"))
+                .andExpect(jsonPath("$.detail").value("인증이 필요합니다."))
+                .andExpect(jsonPath("$.instance").value(endpoint))
+                .andExpect(jsonPath("$.code").doesNotExist())
                 .andReturn();
 
         // then
         assertThat(result.getResponse().getStatus()).isEqualTo(401);
-        assertThat(result.getResponse().getContentAsString())
-                .contains("SECURITY.AUTHENTICATION_REQUIRED");
     }
 
     @Test
@@ -100,11 +110,16 @@ class SecurityFilterChainAutoConfigurationTest {
         // when
         MvcResult result = mockMvc.perform(get(endpoint).header("Authorization", ACCESS_TOKEN))
                 .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("/problems/access-denied"))
+                .andExpect(jsonPath("$.title").value("접근 거부"))
+                .andExpect(jsonPath("$.detail").value("접근 권한이 없습니다."))
+                .andExpect(jsonPath("$.instance").value(endpoint))
+                .andExpect(jsonPath("$.code").doesNotExist())
                 .andReturn();
 
         // then
         assertThat(result.getResponse().getStatus()).isEqualTo(403);
-        assertThat(result.getResponse().getContentAsString()).contains("SECURITY.ACCESS_DENIED");
     }
 
     @Test
@@ -143,7 +158,9 @@ class SecurityFilterChainAutoConfigurationTest {
 
         @Bean
         ObjectMapper objectMapper() {
-            return new ObjectMapper();
+            return JsonMapper.builder()
+                    .addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+                    .build();
         }
     }
 

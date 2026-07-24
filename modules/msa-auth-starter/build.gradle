@@ -1,0 +1,12 @@
+description = 'msa-auth-starter-aggregator-module'
+
+dependencies {
+    api project(':modules:service-starter')
+    api project(':modules:security-error-webmvc')
+    api project(':modules:security-jwt-issuer')
+    api project(':modules:security-jpa')
+
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+}

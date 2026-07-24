@@ -1,0 +1,14 @@
+description = 'service-starter-aggregator-module'
+
+dependencies {
+    api project(':modules:error-handling-starter')
+    api project(':modules:jpa')
+    api project(':modules:time')
+    implementation 'org.springframework.boot:spring-boot-flyway'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+}

@@ -7,7 +7,6 @@ hexagonalConvention {
 dependencies {
     api project(':modules:security-application')
     api project(':modules:security-error-webmvc')
-    api project(':modules:error-handling')
     api 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

@@ -1,11 +1,7 @@
 package com.dochiri.security.adapter.in.web.configuration;
 
-import com.dochiri.errorhandling.global.error.ApiErrorCode;
-import com.dochiri.errorhandling.global.error.ApiErrorContractValidator;
-import com.dochiri.errorhandling.global.error.ErrorHandlingAutoConfiguration;
-import com.dochiri.security.adapter.in.web.error.SecurityErrorCode;
 import com.dochiri.security.adapter.in.web.error.SecurityErrorResponsePort;
-import com.dochiri.security.application.exception.SecurityApplicationErrorCode;
+import com.dochiri.security.adapter.in.web.error.SecurityExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -14,8 +10,6 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.Arrays;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -23,25 +17,23 @@ class SecurityErrorAutoConfigurationTest {
 
     private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(
-                    SecurityErrorMappingAutoConfiguration.class,
-                    SecurityErrorAutoConfiguration.class,
-                    ErrorHandlingAutoConfiguration.class
+                    SecurityExceptionHandlerAutoConfiguration.class,
+                    SecurityErrorAutoConfiguration.class
             ))
             .withBean(ObjectMapper.class, ObjectMapper::new);
 
     @Test
-    @DisplayName("Security 오류와 Application 오류를 공통 계약 검증에 모두 등록한다")
-    void registersSecurityAndApplicationErrorsInCommonContract() {
+    @DisplayName("보안 Context Advice와 필터 오류 응답 구현을 함께 등록한다")
+    void registersSecurityExceptionAndFilterErrorHandlers() {
         // given
-        ApiErrorCode authenticationRequired = ApiErrorCode.from(SecurityErrorCode.AUTHENTICATION_REQUIRED);
+        WebApplicationContextRunner runner = contextRunner;
 
         // when & then
-        contextRunner.run(context -> {
-            assertThat(context.getBean(ApiErrorContractValidator.class).validate())
-                    .contains(authenticationRequired)
-                    .containsAll(Arrays.stream(SecurityApplicationErrorCode.values())
-                            .map(ApiErrorCode::from)
-                            .toList());
+        runner.run(context -> {
+            assertThat(context).hasSingleBean(SecurityExceptionHandler.class);
+            assertThat(context).hasSingleBean(SecurityErrorResponsePort.class);
+            assertThat(context).hasSingleBean(AuthenticationEntryPoint.class);
+            assertThat(context).hasSingleBean(AccessDeniedHandler.class);
         });
     }
 

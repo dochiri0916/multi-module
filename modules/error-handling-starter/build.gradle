@@ -1,0 +1,14 @@
+description = 'error-handling-webmvc-starter-module'
+
+hexagonalConvention {
+    basePackage = 'com.dochiri.errorhandling'
+}
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-webmvc'
+    api 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.slf4j:slf4j-api'
+
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+}

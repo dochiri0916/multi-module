@@ -9,14 +9,12 @@ pluginManagement {
 rootProject.name = 'multi-module'
 
 include(
-    'modules:api-starter',
-    'modules:auth-server-starter',
-    'modules:error-handling',
-    'modules:gateway-security-starter',
+    'modules:error-handling-starter',
     'modules:jpa',
     'modules:jpa-auditing',
     'modules:jpa-querydsl',
-    'modules:security',
+    'modules:msa-auth-starter',
+    'modules:msa-gateway-starter',
     'modules:security-domain',
     'modules:security-error-webmvc',
     'modules:security-application',
@@ -24,5 +22,6 @@ include(
     'modules:security-jwt-issuer',
     'modules:security-webmvc',
     'modules:security-jpa',
+    'modules:service-starter',
     'modules:time'
 )
