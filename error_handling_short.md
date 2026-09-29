@@ -41,7 +41,7 @@ RFC 9457의 표준 필드는 다음과 같다.
 - `title`: 문제 유형에 대한 짧고 안정적인 설명
 - `status`: HTTP 상태 코드
 - `detail`: 해당 오류 발생에 대한 설명
-- `instance`: 해당 오류가 발생한 요청 또는 발생 건 식별자
+- `instance`: 해당 오류가 발생한 요청 경로. 요청 경로는 `/`로 시작하는 절대 경로로 표현한다.
 
 `code`, `traceId`, `fieldErrors`는 필수가 아닌 확장 필드다. 공식 최소 구성에서는 별도 `code`를 만들지 않고 `type` URI를 문제 유형의 식별자로 사용한다.
 
@@ -59,50 +59,29 @@ Spring이 공식 제공하는 다음 기능만 사용한다.
 ```java
 package com.example.product.domain.exception;
 
-public enum ProductDomainErrorCode {
-    PRODUCT_DESCRIPTION_REQUIRED,
-    PRODUCT_DESCRIPTION_TOO_SHORT,
-    PRODUCT_DESCRIPTION_TOO_LONG
+public abstract sealed class ProductDomainException extends RuntimeException
+        permits ProductDescriptionRequiredException,
+                ProductDescriptionTooShortException,
+                ProductDescriptionTooLongException {
+
+    protected ProductDomainException(final String message) {
+        super(message);
+    }
 }
 ```
 
 ```java
 package com.example.product.domain.exception;
 
-import static java.util.Objects.requireNonNull;
+public final class ProductDescriptionRequiredException extends ProductDomainException {
 
-public final class InvalidProductDescriptionException extends RuntimeException {
-
-    private final ProductDomainErrorCode errorCode;
-
-    private InvalidProductDescriptionException(final ProductDomainErrorCode errorCode) {
-        super(errorCode.name());
-        this.errorCode = requireNonNull(errorCode);
-    }
-
-    public static InvalidProductDescriptionException required() {
-        return new InvalidProductDescriptionException(
-                ProductDomainErrorCode.PRODUCT_DESCRIPTION_REQUIRED
-        );
-    }
-
-    public static InvalidProductDescriptionException tooShort() {
-        return new InvalidProductDescriptionException(
-                ProductDomainErrorCode.PRODUCT_DESCRIPTION_TOO_SHORT
-        );
-    }
-
-    public static InvalidProductDescriptionException tooLong() {
-        return new InvalidProductDescriptionException(
-                ProductDomainErrorCode.PRODUCT_DESCRIPTION_TOO_LONG
-        );
-    }
-
-    public ProductDomainErrorCode code() {
-        return errorCode;
+    public ProductDescriptionRequiredException() {
+        super("PRODUCT_DESCRIPTION_REQUIRED");
     }
 }
 ```
+
+`ProductDescriptionTooShortException`과 `ProductDescriptionTooLongException`도 같은 방식으로 `ProductDomainException`을 상속한다. sealed `permits`가 허용되는 Domain 예외 타입을 제한한다.
 
 Domain 예외에는 다음 정보를 넣지 않는다.
 
@@ -111,7 +90,7 @@ Domain 예외에는 다음 정보를 넣지 않는다.
 - `ErrorResponse`
 - 사용자 노출 title/detail
 
-`super(errorCode.name())`은 내부 식별용일 뿐이며 API 응답에 노출하지 않는다.
+예외 message는 내부 식별용일 뿐이며 API 응답에 노출하지 않는다.
 
 ## Web Adapter에서 직접 변환
 
@@ -120,7 +99,9 @@ Domain 예외에는 다음 정보를 넣지 않는다.
 ```java
 package com.example.product.adapter.in.web;
 
-import com.example.product.domain.exception.InvalidProductDescriptionException;
+import com.example.product.domain.exception.ProductDescriptionRequiredException;
+import com.example.product.domain.exception.ProductDescriptionTooLongException;
+import com.example.product.domain.exception.ProductDescriptionTooShortException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -134,27 +115,31 @@ import java.net.URI;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class ProductExceptionHandler {
 
-    @ExceptionHandler(InvalidProductDescriptionException.class)
-    public ProblemDetail handle(
-            final InvalidProductDescriptionException exception
-    ) {
-        return switch (exception.code()) {
-            case PRODUCT_DESCRIPTION_REQUIRED -> problem(
-                    "product-description-required",
-                    "상품 설명 입력 오류",
-                    "상품 설명은 필수입니다."
-            );
-            case PRODUCT_DESCRIPTION_TOO_SHORT -> problem(
-                    "product-description-too-short",
-                    "상품 설명 입력 오류",
-                    "상품 설명이 최소 길이보다 짧습니다."
-            );
-            case PRODUCT_DESCRIPTION_TOO_LONG -> problem(
-                    "product-description-too-long",
-                    "상품 설명 입력 오류",
-                    "상품 설명이 최대 길이를 초과했습니다."
-            );
-        };
+    @ExceptionHandler(ProductDescriptionRequiredException.class)
+    public ProblemDetail handle(final ProductDescriptionRequiredException exception) {
+        return problem(
+                "product-description-required",
+                "상품 설명 입력 오류",
+                "상품 설명은 필수입니다."
+        );
+    }
+
+    @ExceptionHandler(ProductDescriptionTooShortException.class)
+    public ProblemDetail handle(final ProductDescriptionTooShortException exception) {
+        return problem(
+                "product-description-too-short",
+                "상품 설명 입력 오류",
+                "상품 설명이 최소 길이보다 짧습니다."
+        );
+    }
+
+    @ExceptionHandler(ProductDescriptionTooLongException.class)
+    public ProblemDetail handle(final ProductDescriptionTooLongException exception) {
+        return problem(
+                "product-description-too-long",
+                "상품 설명 입력 오류",
+                "상품 설명이 최대 길이를 초과했습니다."
+        );
     }
 
     private ProblemDetail problem(
@@ -173,7 +158,7 @@ public final class ProductExceptionHandler {
 }
 ```
 
-같은 예외가 여러 error code를 가진다면 exhaustive `switch`로 변환한다. 새 enum 상수가 추가되고 Web 매핑이 누락되면 컴파일 오류가 발생한다.
+예외 타입별 `@ExceptionHandler`가 HTTP 표현을 각각 정의한다. 새 Domain 예외는 sealed permits 목록과 Web Adapter 변환을 함께 갱신한다.
 
 예외마다 HTTP 상태가 다르다면 `problem` 메서드가 `HttpStatus`를 받도록 확장한다. 실제 길이처럼 클라이언트가 처리해야 하는 구조화된 값이 있을 때만 RFC 9457 확장 필드로 추가한다.
 

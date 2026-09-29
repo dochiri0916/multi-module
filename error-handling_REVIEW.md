@@ -82,7 +82,7 @@ consumer.domain <- consumer.application <- consumer.adapter.in.web
                                       Spring ProblemDetail
 ```
 
-- Domain/Application 예외는 의미 error code와 필요한 상태만 보관한다.
+- Domain/Application은 sealed 예외 계층의 구체 타입으로 실패 의미를 표현한다.
 - HTTP status, type, title, detail은 Context Web Adapter가 결정한다.
 - `GlobalExceptionHandler`는 특정 Context 예외를 import하거나 분기하지 않는다.
 - 미처리 예외는 원본을 서버 로그에 남기고 내부 문자열을 숨긴 500으로 반환한다.
@@ -100,7 +100,7 @@ starter는 다음 공식 API만 사용한다.
 - `@ExceptionHandler`
 - Spring Boot Auto-configuration
 
-기본 응답은 RFC 9457의 `type`, `title`, `status`, `detail`, `instance`만 사용한다. `code`, `traceId`, `fieldErrors`는 제품 요구사항이 생기기 전까지 추가하지 않는다.
+기본 응답은 RFC 9457의 `type`, `title`, `status`, `detail`, `instance`만 사용한다. `instance` 요청 경로는 `/`로 시작하는 절대 경로로 표현한다. `code`, `traceId`, `fieldErrors`는 제품 요구사항이 생기기 전까지 추가하지 않는다.
 
 일반 500은 RFC 기본 problem type인 `about:blank`를 사용한다. Spring은 기본값인 `type` 필드를 JSON에서 생략할 수 있으며 이는 표준 위반이 아니다.
 
@@ -113,20 +113,24 @@ starter는 다음 공식 API만 사용한다.
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class ProductExceptionHandler {
 
-    @ExceptionHandler(InvalidProductDescriptionException.class)
-    public ProblemDetail handle(
-            final InvalidProductDescriptionException exception
-    ) {
-        return switch (exception.code()) {
-            case PRODUCT_DESCRIPTION_REQUIRED -> requiredProblem();
-            case PRODUCT_DESCRIPTION_TOO_SHORT -> tooShortProblem();
-            case PRODUCT_DESCRIPTION_TOO_LONG -> tooLongProblem();
-        };
+    @ExceptionHandler(ProductDescriptionRequiredException.class)
+    public ProblemDetail handle(final ProductDescriptionRequiredException exception) {
+        return requiredProblem();
+    }
+
+    @ExceptionHandler(ProductDescriptionTooShortException.class)
+    public ProblemDetail handle(final ProductDescriptionTooShortException exception) {
+        return tooShortProblem();
+    }
+
+    @ExceptionHandler(ProductDescriptionTooLongException.class)
+    public ProblemDetail handle(final ProductDescriptionTooLongException exception) {
+        return tooLongProblem();
     }
 }
 ```
 
-exhaustive `switch`는 error-code enum이 추가됐지만 HTTP 매핑이 빠진 경우 컴파일 오류를 발생시킨다. 별도 runtime registry와 시작 시점 validator가 필요하지 않다.
+Domain 예외의 abstract sealed base class는 `permits`로 허용되는 구체 예외 타입을 제한한다. 각 예외 타입의 `@ExceptionHandler`가 HTTP 표현을 직접 정의하므로 error-code `switch`가 필요하지 않다.
 
 공통 fallback은 가장 낮은 order를 사용하므로 Context Advice는 높은 order로 등록한다.
 

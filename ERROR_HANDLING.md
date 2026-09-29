@@ -44,40 +44,31 @@ RFC 9457의 표준 필드만 기본으로 사용한다.
 - `title`: 같은 문제 유형에서 안정적으로 유지할 요약
 - `status`: 실제 HTTP 응답과 같은 상태
 - `detail`: 클라이언트가 문제를 수정하는 데 필요한 설명
-- `instance`: Spring이 설정하는 요청 경로
+- `instance`: 요청 경로를 `/`로 시작하는 절대 경로로 표현한다. Spring은 요청 URI 경로를 설정한다.
 
 별도 `code`, `traceId`, `fieldErrors`는 기본 응답에 추가하지 않는다. 일반적인 HTTP 오류는 `about:blank`를 사용하며 Spring 직렬화 결과에서 `type`이 생략될 수 있다.
 
 ## Domain과 Web Adapter 경계
 
-Domain/Application 예외는 HTTP 상태, `ProblemDetail`, 사용자 메시지를 알지 못한다. 실패 의미의 enum과 필요한 상태만 보관한다.
+Domain/Application 예외는 HTTP 상태, `ProblemDetail`, 사용자 메시지를 알지 못한다. 각 실패를 별도의 예외 타입으로 표현하고, sealed permits로 허용되는 예외 집합을 선언한다.
 
 ```java
-public enum ProductDomainErrorCode {
-    PRODUCT_DESCRIPTION_REQUIRED,
-    PRODUCT_DESCRIPTION_TOO_SHORT,
-    PRODUCT_DESCRIPTION_TOO_LONG
+public abstract sealed class ProductDomainException extends RuntimeException
+        permits ProductDescriptionRequiredException,
+                ProductDescriptionTooShortException,
+                ProductDescriptionTooLongException {
+
+    protected ProductDomainException(final String message) {
+        super(message);
+    }
 }
 ```
 
 ```java
-public final class InvalidProductDescriptionException extends RuntimeException {
+public final class ProductDescriptionRequiredException extends ProductDomainException {
 
-    private final ProductDomainErrorCode errorCode;
-
-    private InvalidProductDescriptionException(final ProductDomainErrorCode errorCode) {
-        super(errorCode.name());
-        this.errorCode = requireNonNull(errorCode);
-    }
-
-    public static InvalidProductDescriptionException required() {
-        return new InvalidProductDescriptionException(
-                ProductDomainErrorCode.PRODUCT_DESCRIPTION_REQUIRED
-        );
-    }
-
-    public ProductDomainErrorCode code() {
-        return errorCode;
+    public ProductDescriptionRequiredException() {
+        super("PRODUCT_DESCRIPTION_REQUIRED");
     }
 }
 ```
@@ -93,27 +84,31 @@ public final class InvalidProductDescriptionException extends RuntimeException {
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class ProductExceptionHandler {
 
-    @ExceptionHandler(InvalidProductDescriptionException.class)
-    public ProblemDetail handle(
-            final InvalidProductDescriptionException exception
-    ) {
-        return switch (exception.code()) {
-            case PRODUCT_DESCRIPTION_REQUIRED -> problem(
-                    "product-description-required",
-                    "상품 설명 입력 오류",
-                    "상품 설명은 필수입니다."
-            );
-            case PRODUCT_DESCRIPTION_TOO_SHORT -> problem(
-                    "product-description-too-short",
-                    "상품 설명 입력 오류",
-                    "상품 설명이 최소 길이보다 짧습니다."
-            );
-            case PRODUCT_DESCRIPTION_TOO_LONG -> problem(
-                    "product-description-too-long",
-                    "상품 설명 입력 오류",
-                    "상품 설명이 최대 길이를 초과했습니다."
-            );
-        };
+    @ExceptionHandler(ProductDescriptionRequiredException.class)
+    public ProblemDetail handle(final ProductDescriptionRequiredException exception) {
+        return problem(
+                "product-description-required",
+                "상품 설명 입력 오류",
+                "상품 설명은 필수입니다."
+        );
+    }
+
+    @ExceptionHandler(ProductDescriptionTooShortException.class)
+    public ProblemDetail handle(final ProductDescriptionTooShortException exception) {
+        return problem(
+                "product-description-too-short",
+                "상품 설명 입력 오류",
+                "상품 설명이 최소 길이보다 짧습니다."
+        );
+    }
+
+    @ExceptionHandler(ProductDescriptionTooLongException.class)
+    public ProblemDetail handle(final ProductDescriptionTooLongException exception) {
+        return problem(
+                "product-description-too-long",
+                "상품 설명 입력 오류",
+                "상품 설명이 최대 길이를 초과했습니다."
+        );
     }
 
     private ProblemDetail problem(
@@ -132,7 +127,7 @@ public final class ProductExceptionHandler {
 }
 ```
 
-Context Advice는 공통 fallback보다 먼저 선택되도록 높은 order를 사용한다. 같은 예외가 여러 error code를 가질 때는 exhaustive `switch`가 신규 상수의 매핑 누락을 컴파일 단계에서 드러낸다.
+Context Advice는 공통 fallback보다 먼저 선택되도록 높은 order를 사용한다. 예외 타입별 `@ExceptionHandler`가 HTTP 표현을 각각 정의하고, sealed permits가 Domain 예외의 허용된 하위 타입을 제한한다.
 
 Context Advice가 `ResponseEntityExceptionHandler`까지 상속해야 한다면 해당 Advice가 전역 handler 역할도 맡는다. 이 경우 starter의 공통 Advice는 자동 구성되지 않는다.
 
