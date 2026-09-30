@@ -1,4 +1,4 @@
-package com.dochiri.errorhandling.global.error;
+package com.dochiri.errorhandling.adapter.in.web.error;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

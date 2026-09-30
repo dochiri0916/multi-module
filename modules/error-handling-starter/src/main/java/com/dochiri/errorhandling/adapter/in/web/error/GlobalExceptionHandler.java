@@ -1,4 +1,4 @@
-package com.dochiri.errorhandling.global.error;
+package com.dochiri.errorhandling.adapter.in.web.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;

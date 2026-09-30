@@ -1,1 +1,1 @@
-com.dochiri.errorhandling.global.error.ErrorHandlingAutoConfiguration
+com.dochiri.errorhandling.adapter.in.web.error.ErrorHandlingAutoConfiguration

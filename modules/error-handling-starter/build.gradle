@@ -1,7 +1,7 @@
 description = 'error-handling-webmvc-starter-module'
 
 hexagonalConvention {
-    basePackage = 'com.dochiri.errorhandling'
+    basePackage = 'com.dochiri'
 }
 
 dependencies {

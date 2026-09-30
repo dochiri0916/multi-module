@@ -1,4 +1,4 @@
-package com.dochiri.errorhandling.global.error;
+package com.dochiri.errorhandling.adapter.in.web.error;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
