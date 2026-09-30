@@ -1,4 +1,9 @@
 pluginManagement {
+    def buildConventionPath = providers.gradleProperty('buildConventionPath').getOrElse('.build-convention')
+    if (file(buildConventionPath).isDirectory()) {
+        includeBuild(buildConventionPath)
+    }
+
     repositories {
         mavenLocal()
         gradlePluginPortal()

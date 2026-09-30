@@ -262,6 +262,13 @@ CleanupRefreshSessionsResult cleanup = cleanupRefreshSessionsUseCase.execute(
 
 ## 품질 게이트
 
+검증에는 `io.github.dochiri0916.build-convention:1.0.1` 플러그인이 필요합니다. CI는 아래 커밋을 `.build-convention`에 checkout하고 composite build로 사용합니다. 로컬에서도 최초 한 번 소스를 준비합니다. 다른 경로에 준비한 경우 검증 명령에 `-PbuildConventionPath=/path/to/build-convention`을 추가합니다.
+
+```bash
+git clone https://github.com/dochiri0916/build-convention.git .build-convention
+git -C .build-convention checkout 858890f7224c0e7901b2b6f30004f7997518ee8d
+```
+
 ```bash
 ./gradlew check
 ./gradlew check -PchangedCoverageBaseRef=origin/main

@@ -24,6 +24,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Checkout build convention
+        uses: actions/checkout@v7
+        with:
+          repository: dochiri0916/build-convention
+          ref: 858890f7224c0e7901b2b6f30004f7997518ee8d
+          path: .build-convention
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
