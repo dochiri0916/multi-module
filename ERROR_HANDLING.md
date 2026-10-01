@@ -84,50 +84,31 @@ public final class ProductDescriptionRequiredException extends ProductDomainExce
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class ProductExceptionHandler {
 
-    @ExceptionHandler(ProductDescriptionRequiredException.class)
-    public ProblemDetail handle(final ProductDescriptionRequiredException exception) {
-        return problem(
-                "product-description-required",
-                "상품 설명 입력 오류",
-                "상품 설명은 필수입니다."
-        );
+    @ExceptionHandler(ProductDomainException.class)
+    public ProblemDetail handle(final ProductDomainException exception) {
+        return switch (exception) {
+            case ProductDescriptionRequiredException e -> problem(
+                    "product-description-required", "상품 설명은 필수입니다."
+            );
+            case ProductDescriptionTooShortException e -> problem(
+                    "product-description-too-short", "상품 설명이 최소 길이보다 짧습니다."
+            );
+            case ProductDescriptionTooLongException e -> problem(
+                    "product-description-too-long", "상품 설명이 최대 길이를 초과했습니다."
+            );
+        };
     }
 
-    @ExceptionHandler(ProductDescriptionTooShortException.class)
-    public ProblemDetail handle(final ProductDescriptionTooShortException exception) {
-        return problem(
-                "product-description-too-short",
-                "상품 설명 입력 오류",
-                "상품 설명이 최소 길이보다 짧습니다."
-        );
-    }
-
-    @ExceptionHandler(ProductDescriptionTooLongException.class)
-    public ProblemDetail handle(final ProductDescriptionTooLongException exception) {
-        return problem(
-                "product-description-too-long",
-                "상품 설명 입력 오류",
-                "상품 설명이 최대 길이를 초과했습니다."
-        );
-    }
-
-    private ProblemDetail problem(
-            final String type,
-            final String title,
-            final String detail
-    ) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                detail
-        );
+    private ProblemDetail problem(final String type, final String detail) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         problem.setType(URI.create("/problems/" + type));
-        problem.setTitle(title);
+        problem.setTitle("상품 설명 입력 오류");
         return problem;
     }
 }
 ```
 
-Context Advice는 공통 fallback보다 먼저 선택되도록 높은 order를 사용한다. 예외 타입별 `@ExceptionHandler`가 HTTP 표현을 각각 정의하고, sealed permits가 Domain 예외의 허용된 하위 타입을 제한한다.
+Context Advice는 공통 fallback보다 먼저 선택되도록 높은 order를 사용한다. sealed 상위 예외를 단일 핸들러로 받고, `switch`에서 하위 타입별 HTTP 응답을 정의한다.
 
 Context Advice가 `ResponseEntityExceptionHandler`까지 상속해야 한다면 해당 Advice가 전역 handler 역할도 맡는다. 이 경우 starter의 공통 Advice는 자동 구성되지 않는다.
 
